@@ -1,10 +1,11 @@
+use super::io::{getchar, is_key_down, putchar};
 #[cfg(test)]
 use std::cell::RefCell;
-use super::io::{getchar, putchar};
 
 pub trait IOHandle {
     fn getchar(&self) -> char;
     fn putchar(&self, ch: char);
+    fn is_key_down(&self) -> bool;
 }
 
 pub(crate) struct RealIOHandle;
@@ -17,12 +18,17 @@ impl IOHandle for RealIOHandle {
     fn putchar(&self, ch: char) {
         putchar(ch)
     }
+
+    fn is_key_down(&self) -> bool {
+        is_key_down()
+    }
 }
 
 #[cfg(test)]
 pub(crate) struct TestIOHandle {
     key_presses: RefCell<Vec<char>>,
     outputs: RefCell<Vec<char>>,
+    keydown_values: RefCell<Vec<bool>>,
 }
 
 #[cfg(test)]
@@ -31,6 +37,7 @@ impl TestIOHandle {
         Self {
             key_presses: RefCell::new(Vec::new()),
             outputs: RefCell::new(Vec::new()),
+            keydown_values: RefCell::new(Vec::new()),
         }
     }
 
@@ -42,10 +49,13 @@ impl TestIOHandle {
         self.key_presses.borrow_mut().extend(chars);
     }
 
+    pub(crate) fn add_keydown_value(&mut self, val: bool) {
+        self.keydown_values.borrow_mut().push(val)
+    }
+
     pub(crate) fn get_test_outputs(&self) -> Vec<char> {
         self.outputs.borrow().clone()
     }
-
 }
 
 #[cfg(test)]
@@ -59,5 +69,12 @@ impl IOHandle for TestIOHandle {
 
     fn putchar(&self, ch: char) {
         self.outputs.borrow_mut().push(ch);
+    }
+
+    fn is_key_down(&self) -> bool {
+        self.keydown_values
+            .borrow_mut()
+            .pop()
+            .expect("is_key_down called on empty keydown_values vec")
     }
 }

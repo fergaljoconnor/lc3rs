@@ -39,7 +39,8 @@ pub(crate) fn load<IO: IOHandle>(vm: &mut VM<IO>, command: &Command) {
     let offset = sign_extend(command.bit_slice(7, 15), 9);
     let pc = vm.reg_read(RPC);
     let address = wrapping_add!(pc, offset);
-    vm.reg_index_write(target_reg, vm.mem_read(address));
+    let val = vm.mem_read(address);
+    vm.reg_index_write(target_reg, val);
     vm.update_flags(target_reg.into());
 }
 
@@ -87,7 +88,8 @@ pub(crate) fn load_register<IO: IOHandle>(vm: &mut VM<IO>, command: &Command) {
     let base = command.bit_slice(7, 9) as u8;
     let offset = sign_extend(command.bit_slice(10, 15), 6);
     let address = wrapping_add!(vm.reg_index_read(base), offset);
-    vm.reg_index_write(target, vm.mem_read(address));
+    let val = vm.mem_read(address);
+    vm.reg_index_write(target, val);
     vm.update_flags(target.into());
 }
 
@@ -116,7 +118,9 @@ pub(crate) fn load_indirect<IO: IOHandle>(vm: &mut VM<IO>, command: &Command) {
 
     let target = command.bit_slice(4, 6) as u8;
     let final_address = vm.mem_read(wrapping_add!(pc, pc_offset));
-    vm.reg_index_write(target, vm.mem_read(final_address));
+    let val = vm.mem_read(final_address);
+
+    vm.reg_index_write(target, val);
     vm.update_flags(target.into());
 }
 
