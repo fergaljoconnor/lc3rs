@@ -223,4 +223,29 @@ mod test {
         assert_eq!(vm.mem_read(super::KB_STATUS_POS), 1 << 15);
         assert_eq!(vm.mem_read(super::KB_DATA_POS) as u8 as char, test_char);
     }
+
+    #[test]
+    fn can_run_program() {
+        let mut program: Vec<u16> = vec![
+            // Write (incremented program counter + 2) into RR0
+            0b1110_0000_0000_0010,
+            // Print the string starting at the address in RR0
+            0xF022,
+            // Halt
+            0xF025,
+        ];
+
+        let test_string = "Hello world!";
+        let char_vals = test_string.chars().map(|ch| ch as u16);
+        program.extend(char_vals);
+
+        let io_handle = TestIOHandle::new();
+        let mut vm = VM::new_with_io(io_handle);
+        vm.load_program(program);
+        vm.run();
+
+        let io_handle = vm.into_io_handle();
+        let outputs: String = io_handle.get_test_outputs().iter().collect();
+        assert_eq!(test_string.to_string(), outputs);
+    }
 }
