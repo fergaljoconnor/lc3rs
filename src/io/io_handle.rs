@@ -2,6 +2,9 @@ use super::io::{getchar, is_key_down, putchar};
 #[cfg(test)]
 use std::cell::RefCell;
 
+// TODO: Maybe the dependency should be flipped here, so this trait should
+// be part of the VM module. It's the VM's needs that actually determine
+// what this interface should do.
 pub trait IOHandle {
     fn getchar(&self) -> char;
     fn putchar(&self, ch: char);
@@ -49,7 +52,7 @@ impl TestIOHandle {
         self.key_presses.borrow_mut().extend(chars);
     }
 
-    pub(crate) fn add_keydown_value(&mut self, val: bool) {
+    pub(crate) fn add_keydown_response(&mut self, val: bool) {
         self.keydown_values.borrow_mut().push(val)
     }
 

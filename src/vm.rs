@@ -13,7 +13,7 @@ const MEMORY_SIZE: usize = (u16::MAX as usize) + 1;
 const PC_START: u16 = 0x3000; // Initial program counter
 
 // Mem Mapped Register Locations
-// There are 3 registers listed in the spec 
+// There are 3 registers listed in the spec
 // (https://courses.engr.illinois.edu/ece411/fa2019/mp/LC3b_ISA.pdf
 // or https://justinmeiners.github.io/lc3-vm/supplies/lc3-isa.pdf) we don't
 // implement here yet, the display status register, display data register and
@@ -187,6 +187,7 @@ where
 mod test {
     use super::VM;
     use crate::condition_flags::{FL_NEG, FL_POS, FL_ZRO};
+    use crate::io::TestIOHandle;
     use crate::register::Register::RCond;
 
     #[test]
@@ -201,5 +202,25 @@ mod test {
             vm.update_flags(test_reg as usize);
             assert_eq!(vm.reg_read(RCond), flag);
         }
+    }
+
+    #[test]
+    fn can_read_memmapped_registers() {
+        let test_char = 'q';
+
+        let mut io_handle = TestIOHandle::new();
+        io_handle.add_keydown_response(true);
+        io_handle.add_key_press(test_char);
+        let mut vm = VM::new_with_io(io_handle);
+
+        // Note in case I'm changing this in the future. The ordering
+        // here is important. The read of the status register and
+        // positive response is what triggers the update of the data
+        // register, so if the order of the statements is flipped, the data
+        // register read fails (and should, since we're not on a physical
+        // machine there's nothing independently updating the registers
+        // on its own schedule).
+        assert_eq!(vm.mem_read(super::KB_STATUS_POS), 1 << 15);
+        assert_eq!(vm.mem_read(super::KB_DATA_POS) as u8 as char, test_char);
     }
 }
