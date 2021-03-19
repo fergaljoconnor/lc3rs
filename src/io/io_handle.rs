@@ -11,7 +11,7 @@ pub trait IOHandle {
     fn is_key_down(&self) -> bool;
 }
 
-pub(crate) struct RealIOHandle;
+pub struct RealIOHandle;
 
 impl IOHandle for RealIOHandle {
     fn getchar(&self) -> char {

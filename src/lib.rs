@@ -1,6 +1,7 @@
 #[macro_use]
 extern crate crossterm;
 
+pub mod cli;
 mod command;
 mod condition_flags;
 pub mod io;

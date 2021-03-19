@@ -69,7 +69,7 @@ where
         }
     }
 
-    pub fn load_program(&mut self, program: Vec<u16>) {
+    pub fn load_program(&mut self, program: &Vec<u16>) {
         let max_len = MEMORY_SIZE - PC_START as usize;
         if program.len() > max_len {
             panic!(
@@ -241,7 +241,7 @@ mod test {
 
         let io_handle = TestIOHandle::new();
         let mut vm = VM::new_with_io(io_handle);
-        vm.load_program(program);
+        vm.load_program(&program);
         vm.run();
 
         let io_handle = vm.into_io_handle();
