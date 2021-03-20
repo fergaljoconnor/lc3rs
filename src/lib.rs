@@ -6,6 +6,7 @@ mod command;
 mod condition_flags;
 pub mod io;
 mod op;
+pub mod plugin;
 mod register;
 mod trap;
 #[macro_use]
