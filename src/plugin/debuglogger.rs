@@ -19,8 +19,8 @@ impl<Sink: Write> DebugLogger<Sink> {
     }
 }
 
-impl<Sink: Write> Plugin for DebugLogger<Sink> {
-    fn handle_event<IOType: IOHandle>(&mut self, _: &mut VM<IOType>, event: &Event) {
+impl<Sink: Write, IOType: IOHandle> Plugin<IOType> for DebugLogger<Sink> {
+    fn handle_event(&mut self, _: &mut VM<IOType>, event: &Event) {
         let repr = format!("{:?}", event);
         // TODO: Proper error propagation
         self.sink
@@ -34,25 +34,25 @@ impl<Sink: Write> Plugin for DebugLogger<Sink> {
 
 #[cfg(test)]
 mod test {
-    use crate::vm::VM;
     use super::super::{Event, Plugin};
     use super::DebugLogger;
+    use crate::vm::VM;
     use std::io::{Cursor, Read, Seek, SeekFrom};
 
     #[test]
     fn can_handle_event() {
         let test_cases = vec![
             Event::Command { bytes: 0 },
-            Event::MemRead {
+            Event::MemGet {
                 location: 1,
                 value: 2,
             },
-            Event::MemWrite {
+            Event::MemSet {
                 location: 3,
                 value: 4,
             },
-            Event::RegRead { index: 5, value: 6 },
-            Event::RegWrite { index: 7, value: 8 },
+            Event::RegGet { index: 5, value: 6 },
+            Event::RegSet { index: 7, value: 8 },
         ];
 
         for event in test_cases {

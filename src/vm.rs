@@ -2,6 +2,7 @@ use crate::command::Command;
 use crate::condition_flags::{FL_NEG, FL_POS, FL_ZRO};
 use crate::io::{IOHandle, RealIOHandle};
 use crate::op::{handler, Op};
+use crate::plugin::{Event, Plugin};
 use crate::register::Register::{RCond, RCount, RPC, RR0, RR1, RR2, RR3, RR4, RR5, RR6, RR7};
 use crate::register::{Register, NUM_REGISTERS};
 use crate::trap::TrapCode;
@@ -21,14 +22,18 @@ const PC_START: u16 = 0x3000; // Initial program counter
 const KB_STATUS_POS: u16 = 0xFE00; // Keyboard Status Register
 const KB_DATA_POS: u16 = 0xFE02; // Keyboard Data Register
 
-pub struct VM<IOType>
-where
-    IOType: IOHandle,
+pub struct VM<IOType: IOHandle>
 {
+    // TODO: Splitting the state between a VM state component and
+    // a  plugin manager component would make it easier for the compiler to
+    // reason about mutability during plugin notifications and push some of
+    // the fiddly plugin management logic into a class where it's more relevant.
     memory: [u16; MEMORY_SIZE],
     registers: [u16; NUM_REGISTERS],
     running: bool,
     io_handle: IOType,
+    plugins: Option<Vec<Box<dyn Plugin<IOType>>>>,
+    notifying_plugins: bool,
 }
 
 impl VM<RealIOHandle> {
@@ -39,9 +44,7 @@ impl VM<RealIOHandle> {
     }
 }
 
-impl<IOType> VM<IOType>
-where
-    IOType: IOHandle,
+impl<IOType: IOHandle> VM<IOType>
 {
     // If there end up being more options to tweak might want to break out
     // a builder for this one, but right now this is fine.
@@ -53,6 +56,8 @@ where
             registers,
             running: false,
             io_handle,
+            plugins: Some(Vec::new()),
+            notifying_plugins: false,
         }
     }
 
@@ -153,6 +158,45 @@ where
         };
 
         self.reg_write(RCond, cond_flag);
+    }
+
+    pub(crate) fn notify_plugins(&mut self, event: &Event) {
+        // This memory swapping dance prevents a safety issue.
+        // Basically, if we were iterating over the plugins vector contained
+        // in the VM while also allowing the plugins to mutate the VM while
+        // they were handling the event, then the plugins could theoretically
+        // mutate their own vector while it is being iterated over, which is
+        // obviously bad for business.
+        //
+        // The other issue here is loops. Imagine you have two
+        // plugins, one has the job of always setting register 0 to 1 (plugin 1)
+        // and the other has the job of setting it to 2 (plugin 2). These
+        // plugins are set up so whenever they receive a reg_write event to
+        // register 0, they overwrite it with their value. So if these
+        // events can be generated in the middle of the notifications
+        // loop plugin 1 setting the value will trigger another iteration
+        // of the loop. Even if plugin 1 somehow didn't cause a loop by putting
+        // reg_read/ reg_write notifications out there, the interaction
+        // of plugin 1 and plugin 2 fighting over the value will. If you
+        // prevent new events being generated while the notification loop is
+        // running, it prevents the issue, at the cost of not being able to
+        // get notifications on what the other plugins are doing.
+
+        if self.plugins.is_none() {
+            // We're in the notifications loop, don't push the event
+            return;
+        }
+
+        let mut plugins_option = None;
+        std::mem::swap(&mut plugins_option, &mut self.plugins);
+        let mut plugins = plugins_option.unwrap();
+
+        for plugin in &mut plugins  {
+            plugin.handle_event(self, event)
+        }
+
+        plugins_option = Some(plugins);
+        std::mem::swap(&mut plugins_option, &mut self.plugins);
     }
 
     pub(crate) fn run_command(&mut self, command: &Command) {
