@@ -1,8 +1,11 @@
 use structopt::StructOpt;
 
 #[derive(StructOpt)]
+#[structopt(rename_all = "kebab-case")]
 pub struct Options {
     pub path: String,
+    #[structopt(long, short)]
+    pub debug_log_path: Option<String>,
 }
 
 pub fn read_program(path: &String) -> Vec<u16> {

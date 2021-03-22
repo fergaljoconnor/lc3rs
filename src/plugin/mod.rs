@@ -1,5 +1,5 @@
 mod plugin;
-mod debuglogger;
+pub mod debuglogger;
 #[cfg(test)]
 mod test;
 

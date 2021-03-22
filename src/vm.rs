@@ -46,6 +46,10 @@ impl VM<RealIOHandle> {
 
 impl<IOType: IOHandle> VM<IOType>
 {
+    pub fn add_plugin(&mut self, plugin: Box<dyn Plugin<IOType>>) {
+        self.plugins.as_mut().map(|s| s.push(plugin));
+    }
+
     // If there end up being more options to tweak might want to break out
     // a builder for this one, but right now this is fine.
     pub(crate) fn new_with_io(io_handle: IOType) -> Self {
@@ -128,12 +132,15 @@ impl<IOType: IOHandle> VM<IOType>
         self.registers[index as usize] = val;
     }
 
-    pub(crate) fn putchar(&self, ch: char) {
+    pub(crate) fn putchar(&mut self, ch: char) {
+        self.notify_plugins(&Event::CharPut{ch});
         self.io_handle.putchar(ch)
     }
 
-    pub(crate) fn getchar(&self) -> char {
-        self.io_handle.getchar()
+    pub(crate) fn getchar(&mut self) -> char {
+        let ch = self.io_handle.getchar();
+        self.notify_plugins(&Event::CharGet{ch});
+        ch
     }
 
     pub(crate) fn get_running(&mut self) -> bool {
@@ -200,6 +207,9 @@ impl<IOType: IOHandle> VM<IOType>
     }
 
     pub(crate) fn run_command(&mut self, command: &Command) {
+        let event = Event::Command{bytes: command.get_bytes()};
+        self.notify_plugins(&event);
+
         let op = Op::from_int(command.op_code());
         match op {
             Op::Br => handler::branch(self, command),

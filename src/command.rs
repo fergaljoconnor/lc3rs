@@ -1,4 +1,4 @@
-#[derive(Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub(crate) struct Command {
     bytes: u16,
 }
@@ -11,6 +11,10 @@ impl Command {
     // The op_code is the leftmost 4 bits of the command
     pub(crate) fn op_code(&self) -> u8 {
         self.bit_slice(0, 3) as u8
+    }
+
+    pub(crate) fn get_bytes(&self) -> u16 {
+        self.bytes
     }
 
     // Return the bits bitween left and right index (inclusive) as a u16

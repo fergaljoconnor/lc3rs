@@ -1,15 +1,17 @@
 use std::io::Write;
 
-use super::{Event, Plugin};
+use crate::command::Command;
+use crate::op::Op;
 use crate::io::IOHandle;
 use crate::vm::VM;
+use super::{Event, Plugin};
 
-struct DebugLogger<Sink: Write> {
+pub struct DebugLogger<Sink: Write> {
     sink: Sink,
 }
 
 impl<Sink: Write> DebugLogger<Sink> {
-    fn new(sink: Sink) -> Self {
+    pub fn new(sink: Sink) -> Self {
         Self { sink }
     }
 
@@ -24,13 +26,28 @@ impl<Sink: Write, IOType: IOHandle> Plugin<IOType> for DebugLogger<Sink> {
         let repr = format!("{:?}", event);
         // TODO: Proper error propagation
         self.sink
-            .write(&repr.as_bytes())
+            .write(debug_format(event).as_bytes())
             .expect("Debug Logger Encountered an issue writing to log");
+        self.sink.write(b"\n").expect("Debug Logger Encountered an issue writing to log");
         self.sink
             .flush()
             .expect("Debug Logger Encountered an issue flushing log");
     }
 }
+
+fn debug_format(event: &Event) -> String {
+    match event {
+        Event::Command{bytes} => debug_format_command(*bytes),
+        _ => format!("{:?}", event)
+    }
+}
+
+fn debug_format_command(bytes: u16) -> String {
+    let command = Command::new(bytes);
+    let op = Op::from_int(command.op_code());
+    format!("Command: {{ bytes: {:16b}, op: {:?} }}", bytes, op)
+}
+
 
 #[cfg(test)]
 mod test {
@@ -42,7 +59,6 @@ mod test {
     #[test]
     fn can_handle_event() {
         let test_cases = vec![
-            Event::Command { bytes: 0 },
             Event::MemGet {
                 location: 1,
                 value: 2,
@@ -67,7 +83,7 @@ mod test {
             let mut output = String::new();
             sink.read_to_string(&mut output);
 
-            let expected = format!("{:?}", event);
+            let expected = format!("{:?}\n", event);
             assert_eq!(output, expected);
         }
     }

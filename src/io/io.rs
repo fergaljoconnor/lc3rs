@@ -3,7 +3,10 @@ use crossterm::style::Print;
 use crossterm::terminal::{disable_raw_mode, enable_raw_mode};
 use device_query::{DeviceQuery, DeviceState};
 
-use std::io::stdout;
+use std::io:: {Write, stdout};
+
+// TODO: Something in these functions is creating too many clients and
+// overloading the terminal, causing random crashes during is_key_down.
 
 pub fn getchar() -> char {
     // Largely owe this code to this Stackoverflow answer:
@@ -24,10 +27,9 @@ pub fn getchar() -> char {
 }
 
 pub(crate) fn putchar(ch: char) {
+    print!("{}", ch);
     let mut stdout = stdout();
-    try_enable_raw_mode();
-    execute!(stdout, Print(ch)).expect("Error thrown on call to call to crossterm::execute macro");
-    try_disable_raw_mode();
+    stdout.flush().expect("Error thrown during stdout flush");
 }
 
 pub(crate) fn is_key_down() -> bool {
