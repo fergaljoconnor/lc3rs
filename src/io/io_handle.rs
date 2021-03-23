@@ -1,4 +1,5 @@
-use super::io::{getchar, is_key_down, putchar};
+use device_query::{DeviceQuery, DeviceState};
+use super::io::{getchar, putchar};
 #[cfg(test)]
 use std::cell::RefCell;
 
@@ -11,7 +12,13 @@ pub trait IOHandle {
     fn is_key_down(&self) -> bool;
 }
 
-pub struct RealIOHandle;
+pub struct RealIOHandle { device_state: DeviceState }
+
+impl RealIOHandle {
+    pub fn new() -> Self {
+        Self { device_state: DeviceState::new() }
+    }
+}
 
 impl IOHandle for RealIOHandle {
     fn getchar(&self) -> char {
@@ -23,7 +30,7 @@ impl IOHandle for RealIOHandle {
     }
 
     fn is_key_down(&self) -> bool {
-        is_key_down()
+        self.device_state.get_keys().is_empty()
     }
 }
 

@@ -1,7 +1,5 @@
 use crossterm::event::{read, Event, KeyCode, KeyEvent, KeyModifiers};
-use crossterm::style::Print;
 use crossterm::terminal::{disable_raw_mode, enable_raw_mode};
-use device_query::{DeviceQuery, DeviceState};
 
 use std::io:: {Write, stdout};
 
@@ -30,10 +28,6 @@ pub(crate) fn putchar(ch: char) {
     print!("{}", ch);
     let mut stdout = stdout();
     stdout.flush().expect("Error thrown during stdout flush");
-}
-
-pub(crate) fn is_key_down() -> bool {
-    DeviceState::new().get_keys().is_empty()
 }
 
 fn try_enable_raw_mode() {

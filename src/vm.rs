@@ -40,7 +40,7 @@ impl VM<RealIOHandle> {
     // Want the default constructor to use a standard IO Handle, hence
     // the specific treatment.
     pub fn new() -> Self {
-        Self::new_with_io(RealIOHandle {})
+        Self::new_with_io( RealIOHandle::new() )
     }
 }
 
