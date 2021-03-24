@@ -96,7 +96,7 @@ impl<IOType: IOHandle> VM<IOType>
     pub(crate) fn mem_read(&mut self, pos: u16) -> u16 {
         // Deal with the mem-mapped device registers
         if pos == KB_STATUS_POS {
-            if self.io_handle.is_key_down() {
+            if self.is_key_down() {
                 // TODO: Right now, I think there's a bug here. If the key
                 // being pressed is not a key handled by getchar()
                 // then the vm will fill the status register and pause
@@ -104,19 +104,25 @@ impl<IOType: IOHandle> VM<IOType>
                 // actually doing anything. Not a show stopper, but one to
                 // watch.
                 self.mem_write(KB_STATUS_POS, 1 << 15);
-                self.mem_write(KB_DATA_POS, self.io_handle.getchar() as u16);
+                let ch = self.getchar();
+                self.mem_write(KB_DATA_POS, ch as u16);
             } else {
                 self.mem_write(KB_STATUS_POS, 0);
             }
         };
-        self.memory[pos as usize]
+
+        let val = self.memory[pos as usize];
+        self.notify_plugins(&Event::MemGet {location: pos, value: val});
+        val
+
     }
 
     pub(crate) fn mem_write(&mut self, pos: u16, val: u16) {
+        self.notify_plugins(&Event::MemSet {location: pos, value: val});
         self.memory[pos as usize] = val
     }
 
-    pub(crate) fn reg_read(&self, reg: Register) -> u16 {
+    pub(crate) fn reg_read(&mut self, reg: Register) -> u16 {
         self.reg_index_read(reg.to_u8())
     }
 
@@ -124,11 +130,15 @@ impl<IOType: IOHandle> VM<IOType>
         self.reg_index_write(reg.to_u8(), val);
     }
 
-    pub(crate) fn reg_index_read(&self, index: u8) -> u16 {
-        self.registers[index as usize]
+    pub(crate) fn reg_index_read(&mut self, index: u8) -> u16 {
+        let value = self.registers[index as usize];
+        self.notify_plugins(&Event::RegGet{index, value});
+        value
+
     }
 
     pub(crate) fn reg_index_write(&mut self, index: u8, val: u16) {
+        self.notify_plugins(&Event::RegSet{index, value: val});
         self.registers[index as usize] = val;
     }
 
@@ -143,11 +153,20 @@ impl<IOType: IOHandle> VM<IOType>
         ch
     }
 
+    pub(crate) fn is_key_down(&mut self) -> bool {
+        let key_down = self.io_handle.is_key_down();
+        self.notify_plugins(&Event::KeyDownGet{value: key_down});
+        key_down
+    }
+
     pub(crate) fn get_running(&mut self) -> bool {
-        self.running
+        let value = self.running;
+        self.notify_plugins(&Event::RunningGet {value});
+        value
     }
 
     pub(crate) fn set_running(&mut self, val: bool) {
+        self.notify_plugins(&Event::RunningSet {value: val});
         self.running = val;
     }
 

@@ -48,12 +48,14 @@ pub(crate) fn store<IO: IOHandle>(vm: &mut VM<IO>, command: &Command) {
     let source = command.bit_slice(4, 6) as u8;
     let offset = sign_extend(command.bit_slice(7, 15), 9);
     let target = wrapping_add!(vm.reg_read(RPC), offset);
-    vm.mem_write(target, vm.reg_index_read(source));
+    let val = vm.reg_index_read(source);
+    vm.mem_write(target, val);
 }
 
 pub(crate) fn jump_register<IO: IOHandle>(vm: &mut VM<IO>, command: &Command) {
     // Save program counter
-    vm.reg_write(RR7, vm.reg_read(RPC));
+    let pc = vm.reg_read(RPC);
+    vm.reg_write(RR7, pc);
 
     let offset_mode = command.bit_slice(4, 4) == 1;
 
@@ -98,7 +100,8 @@ pub(crate) fn store_register<IO: IOHandle>(vm: &mut VM<IO>, command: &Command) {
     let base_register = command.bit_slice(7, 9) as u8;
     let offset = sign_extend(command.bit_slice(10, 15), 6);
     let address = wrapping_add!(vm.reg_index_read(base_register), offset);
-    vm.mem_write(address, vm.reg_index_read(source));
+    let val = vm.reg_index_read(source);
+    vm.mem_write(address, val);
 }
 
 pub(crate) fn rti<IO: IOHandle>(_vm: &mut VM<IO>, _command: &Command) {
@@ -108,7 +111,8 @@ pub(crate) fn rti<IO: IOHandle>(_vm: &mut VM<IO>, _command: &Command) {
 pub(crate) fn not<IO: IOHandle>(vm: &mut VM<IO>, command: &Command) {
     let target = command.bit_slice(4, 6) as u8;
     let source = command.bit_slice(7, 9) as u8;
-    vm.reg_index_write(target, !vm.reg_index_read(source));
+    let negated = !vm.reg_index_read(source);
+    vm.reg_index_write(target, negated);
     vm.update_flags(target.into());
 }
 
@@ -130,12 +134,14 @@ pub(crate) fn store_indirect<IO: IOHandle>(vm: &mut VM<IO>, command: &Command) {
     let pc = vm.reg_read(RPC);
     let address = wrapping_add!(pc, offset);
     let final_address = vm.mem_read(address);
-    vm.mem_write(final_address, vm.reg_index_read(source));
+    let val = vm.reg_index_read(source);
+    vm.mem_write(final_address, val);
 }
 
 pub(crate) fn jump<IO: IOHandle>(vm: &mut VM<IO>, command: &Command) {
     let address_reg = command.bit_slice(7, 9) as u8;
-    vm.reg_write(RPC, vm.reg_index_read(address_reg));
+    let address = vm.reg_index_read(address_reg);
+    vm.reg_write(RPC, address);
 }
 
 pub(crate) fn reserved<IO: IOHandle>(_vm: &mut VM<IO>, _command: &Command) {
@@ -145,7 +151,8 @@ pub(crate) fn reserved<IO: IOHandle>(_vm: &mut VM<IO>, _command: &Command) {
 pub(crate) fn load_effective_address<IO: IOHandle>(vm: &mut VM<IO>, command: &Command) {
     let target = command.bit_slice(4, 6) as u8;
     let offset = sign_extend(command.bit_slice(7, 15), 9);
-    vm.reg_index_write(target, wrapping_add!(vm.reg_read(RPC), offset));
+    let effective_address = wrapping_add!(vm.reg_read(RPC), offset);
+    vm.reg_index_write(target, effective_address);
     vm.update_flags(target.into());
 }
 
