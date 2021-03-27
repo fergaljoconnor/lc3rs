@@ -5,9 +5,6 @@ use crate::op::{handler, Op};
 use crate::plugin::{Event, Plugin};
 use crate::register::Register::{RCond, RCount, RPC, RR0, RR1, RR2, RR3, RR4, RR5, RR6, RR7};
 use crate::register::{Register, NUM_REGISTERS};
-use crate::trap::TrapCode;
-use crate::utils::sign_extend;
-use crate::wrapping_add;
 
 const MEMORY_SIZE: usize = (u16::MAX as usize) + 1;
 
@@ -33,7 +30,6 @@ pub struct VM<IOType: IOHandle>
     running: bool,
     io_handle: IOType,
     plugins: Option<Vec<Box<dyn Plugin<IOType>>>>,
-    notifying_plugins: bool,
 }
 
 impl VM<RealIOHandle> {
@@ -61,7 +57,6 @@ impl<IOType: IOHandle> VM<IOType>
             running: false,
             io_handle,
             plugins: Some(Vec::new()),
-            notifying_plugins: false,
         }
     }
 
@@ -221,8 +216,7 @@ impl<IOType: IOHandle> VM<IOType>
             plugin.handle_event(self, event)
         }
 
-        plugins_option = Some(plugins);
-        std::mem::swap(&mut plugins_option, &mut self.plugins);
+        self.plugins = Some(plugins);
     }
 
     pub(crate) fn run_command(&mut self, command: &Command) {
