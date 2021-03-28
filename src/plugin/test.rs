@@ -25,7 +25,7 @@ impl TestPlugin {
 }
 
 impl<IOType: IOHandle> Plugin<IOType> for TestPlugin {
-    fn handle_event(&mut self, vm: &mut VM<IOType>, event: &Event) {
+    fn handle_event(&mut self, _vm: &mut VM<IOType>, event: &Event) {
         self.events.borrow_mut().push(event.clone())
     }
 }

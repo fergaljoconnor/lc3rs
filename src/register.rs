@@ -34,17 +34,9 @@ impl Register {
     pub(crate) fn to_u8(&self) -> u8 {
         *self as u8
     }
+
+    #[cfg(test)]
     pub(crate) fn index(&self) -> usize {
         self.to_u8() as usize
-    }
-
-
-    fn from_int(index: u8) -> Self {
-        let index = index as usize;
-        if index < NUM_REGISTERS {
-            return REGISTERS[index]
-        } else {
-            panic!("Int {} out of range for register index", index);
-        }
     }
 }

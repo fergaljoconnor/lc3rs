@@ -23,7 +23,6 @@ impl<Sink: Write> DebugLogger<Sink> {
 
 impl<Sink: Write, IOType: IOHandle> Plugin<IOType> for DebugLogger<Sink> {
     fn handle_event(&mut self, _: &mut VM<IOType>, event: &Event) {
-        let repr = format!("{:?}", event);
         // TODO: Proper error propagation
         self.sink
             .write(debug_format(event).as_bytes())
@@ -44,7 +43,7 @@ fn debug_format(event: &Event) -> String {
 
 fn debug_format_command(bytes: u16) -> String {
     let command = Command::new(bytes);
-    let op = Op::from_int(command.op_code());
+    let op = Op::from_int(command.op_code().unwrap());
     format!("Command: {{ bytes: {:16b}, op: {:?} }}", bytes, op)
 }
 
@@ -79,9 +78,9 @@ mod test {
             logger.handle_event(&mut vm, &event);
 
             let mut sink = logger.into_sink();
-            sink.seek(SeekFrom::Start(0));
+            sink.seek(SeekFrom::Start(0)).unwrap();
             let mut output = String::new();
-            sink.read_to_string(&mut output);
+            sink.read_to_string(&mut output).unwrap();
 
             let expected = format!("{:?}\n", event);
             assert_eq!(output, expected);

@@ -1,9 +1,10 @@
 use crate::command::Command;
 use crate::condition_flags::{FL_NEG, FL_POS, FL_ZRO};
+use crate::error::Result;
 use crate::io::{IOHandle, RealIOHandle};
 use crate::op::{handler, Op};
 use crate::plugin::{Event, Plugin};
-use crate::register::Register::{RCond, RCount, RPC, RR0, RR1, RR2, RR3, RR4, RR5, RR6, RR7};
+use crate::register::Register::{RCond, RPC};
 use crate::register::{Register, NUM_REGISTERS};
 
 const MEMORY_SIZE: usize = (u16::MAX as usize) + 1;
@@ -60,7 +61,7 @@ impl<IOType: IOHandle> VM<IOType>
         }
     }
 
-    pub fn run(&mut self) {
+    pub fn run(&mut self) -> Result<()> {
         self.set_running(true);
         self.reg_write(RPC, PC_START);
 
@@ -69,8 +70,10 @@ impl<IOType: IOHandle> VM<IOType>
             self.reg_write(RPC, program_count + 1);
 
             let command = Command::new(self.mem_read(program_count));
-            self.run_command(&command)
+            self.run_command(&command)?;
         }
+
+        Ok(())
     }
 
     pub fn load_program(&mut self, program: &Vec<u16>) {
@@ -139,17 +142,17 @@ impl<IOType: IOHandle> VM<IOType>
 
     pub(crate) fn putchar(&mut self, ch: char) {
         self.notify_plugins(&Event::CharPut{ch});
-        self.io_handle.putchar(ch)
+        self.io_handle.putchar(ch).unwrap()
     }
 
     pub(crate) fn getchar(&mut self) -> char {
-        let ch = self.io_handle.getchar();
+        let ch = self.io_handle.getchar().unwrap();
         self.notify_plugins(&Event::CharGet{ch});
         ch
     }
 
     pub(crate) fn is_key_down(&mut self) -> bool {
-        let key_down = self.io_handle.is_key_down();
+        let key_down = self.io_handle.is_key_down().unwrap();
         self.notify_plugins(&Event::KeyDownGet{value: key_down});
         key_down
     }
@@ -219,11 +222,11 @@ impl<IOType: IOHandle> VM<IOType>
         self.plugins = Some(plugins);
     }
 
-    pub(crate) fn run_command(&mut self, command: &Command) {
+    pub(crate) fn run_command(&mut self, command: &Command) -> Result<()> {
         let event = Event::Command{bytes: command.get_bytes()};
         self.notify_plugins(&event);
 
-        let op = Op::from_int(command.op_code());
+        let op = Op::from_int(command.op_code().unwrap());
         match op {
             Op::Br => handler::branch(self, command),
             Op::Add => handler::add(self, command),
@@ -309,7 +312,7 @@ mod test {
         let io_handle = TestIOHandle::new();
         let mut vm = VM::new_with_io(io_handle);
         vm.load_program(&program);
-        vm.run();
+        vm.run().unwrap();
 
         let io_handle = vm.into_io_handle();
         let outputs: String = io_handle.get_test_outputs().iter().collect();

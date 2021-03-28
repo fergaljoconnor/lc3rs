@@ -25,7 +25,7 @@ fn can_add() {
 
     for (command, result, cond) in command_results {
         let command = Command::new(command);
-        vm.run_command(&command);
+        vm.run_command(&command).unwrap();
         assert_eq!(vm.reg_index_read(0), result);
         assert_eq!(vm.reg_read(Register::RCond), cond);
     }
@@ -51,7 +51,7 @@ fn can_branch() {
         let command = Command::new(raw_command);
         vm.reg_write(Register::RCond, cond);
         vm.reg_write(Register::RPC, INITIAL_PC);
-        vm.run_command(&command);
+        vm.run_command(&command).unwrap();
         assert_eq!(vm.reg_read(Register::RPC) as i16, INITIAL_PC as i16 + jump);
     }
 }
@@ -69,7 +69,7 @@ fn can_load() {
         let command = Command::new(command);
         vm.reg_write(RPC, INITIAL_PC);
         vm.mem_write((INITIAL_PC as i16 + offset) as u16, val);
-        vm.run_command(&command);
+        vm.run_command(&command).unwrap();
         assert_eq!(vm.reg_index_read(reg as u8), val);
         assert_eq!(vm.reg_read(RCond), cond);
     }
@@ -90,7 +90,7 @@ fn can_store() {
         let command = Command::new(command);
         vm.reg_index_write(reg, test_val);
         vm.reg_write(RPC, INITIAL_PC);
-        vm.run_command(&command);
+        vm.run_command(&command).unwrap();
         assert_eq!(vm.mem_read((INITIAL_PC as i16 + offset) as u16), test_val);
     }
 }
@@ -110,7 +110,7 @@ fn can_jump_register() {
         let command = Command::new(command);
         vm.reg_write(RPC, INITIAL_PC);
         vm.reg_index_write(register, address);
-        vm.run_command(&command);
+        vm.run_command(&command).unwrap();
         assert_eq!(vm.reg_read(Register::RR7), INITIAL_PC);
         assert_eq!(vm.reg_read(RPC), address);
     }
@@ -127,7 +127,7 @@ fn can_jump_register() {
         let mut vm = VM::new();
         let command = Command::new(command);
         vm.reg_write(RPC, INITIAL_PC);
-        vm.run_command(&command);
+        vm.run_command(&command).unwrap();
         assert_eq!(vm.reg_read(Register::RR7), INITIAL_PC);
         assert_eq!(vm.reg_read(RPC), ((INITIAL_PC as i16) + offset) as u16);
     }
@@ -151,7 +151,7 @@ fn can_and() {
 
     for (command, result, cond) in command_result_cond {
         let command = Command::new(command);
-        vm.run_command(&command);
+        vm.run_command(&command).unwrap();
         assert_eq!(vm.reg_index_read(0), result);
         assert_eq!(vm.reg_read(RCond), cond);
     }
@@ -173,7 +173,7 @@ fn can_load_register() {
         vm.reg_write(base_reg, base_reg_val);
         vm.mem_write((base_reg_val as i16 + offset) as u16, mem_val);
         let command = Command::new(command);
-        vm.run_command(&command);
+        vm.run_command(&command).unwrap();
         assert_eq!(vm.reg_index_read(0), mem_val);
         assert_eq!(vm.reg_read(RCond), cond);
     }
@@ -197,7 +197,7 @@ fn can_store_register() {
         vm.reg_write(base_reg, base_reg_val);
         vm.reg_index_write(0, store_val);
         let command = Command::new(command);
-        vm.run_command(&command);
+        vm.run_command(&command).unwrap();
         assert_eq!(
             vm.mem_read((base_reg_val as i16 + offset) as u16),
             store_val
@@ -221,7 +221,7 @@ fn can_not() {
         let mut vm = VM::new();
         vm.reg_write(source_reg, input);
         let command = Command::new(command);
-        vm.run_command(&command);
+        vm.run_command(&command).unwrap();
         assert_eq!(vm.reg_read(target_reg), output);
         assert_eq!(vm.reg_read(RCond), cond);
     }
@@ -244,7 +244,7 @@ fn can_load_indirect() {
         vm.mem_write((INITIAL_PC as i16 + offset) as u16, address);
         vm.mem_write(address, value);
         let command = Command::new(command);
-        vm.run_command(&command);
+        vm.run_command(&command).unwrap();
         assert_eq!(vm.reg_read(target_reg), value);
         assert_eq!(vm.reg_read(RCond), cond);
     }
@@ -268,7 +268,7 @@ fn can_store_indirect() {
         vm.mem_write((INITIAL_PC as i16 + offset) as u16, address);
         vm.reg_write(source_reg, store_val);
         let command = Command::new(command);
-        vm.run_command(&command);
+        vm.run_command(&command).unwrap();
         assert_eq!(vm.mem_read(address), store_val);
     }
 }
@@ -287,7 +287,7 @@ fn can_jump() {
     vm.reg_write(RPC, INITIAL_PC);
     vm.reg_write(source_reg, stored_pc);
     let command = Command::new(0b1100_0001_1100_0000);
-    vm.run_command(&command);
+    vm.run_command(&command).unwrap();
     assert_eq!(vm.reg_read(RPC), stored_pc);
 }
 
@@ -309,7 +309,7 @@ fn can_load_effective_address() {
         let mut vm = VM::new();
         vm.reg_write(RPC, initial_pc);
         let command = Command::new(command);
-        vm.run_command(&command);
+        vm.run_command(&command).unwrap();
         let target_val = (initial_pc as i16 + offset) as u16;
         assert_eq!(vm.reg_read(target_reg), target_val);
         assert_eq!(vm.reg_read(RCond), cond);
@@ -325,7 +325,7 @@ fn can_trap_getchar() {
     let mut vm = VM::new_with_io(io_handle);
 
     let command = Command::new(0xF020);
-    vm.run_command(&command);
+    vm.run_command(&command).unwrap();
 
     let reg_char = vm.reg_read(Register::RR0) as u8 as char;
     assert_eq!(test_char, reg_char);
@@ -341,7 +341,7 @@ fn can_trap_out() {
     vm.reg_write(io_reg, test_char as u16);
 
     let command = Command::new(0xF021);
-    vm.run_command(&command);
+    vm.run_command(&command).unwrap();
 
     let mut outputs = vm.into_io_handle().get_test_outputs();
     assert!(outputs.len() == 1);
@@ -363,9 +363,9 @@ fn can_trap_put_string() {
     }
 
     let command = Command::new(0xF022);
-    vm.run_command(&command);
+    vm.run_command(&command).unwrap();
 
-    let mut outputs = vm.into_io_handle().get_test_outputs();
+    let outputs = vm.into_io_handle().get_test_outputs();
     assert_eq!(outputs, test_chars);
 }
 
@@ -378,7 +378,7 @@ fn can_trap_in() {
     let mut vm = VM::new_with_io(io_handle);
 
     let command = Command::new(0xF023);
-    vm.run_command(&command);
+    vm.run_command(&command).unwrap();
 
     let mut outputs = vm.into_io_handle().get_test_outputs();
     assert!(outputs.len() == 1);
@@ -409,7 +409,7 @@ fn can_trap_put_byte_string() {
     }
 
     let command = Command::new(0xF024);
-    vm.run_command(&command);
+    vm.run_command(&command).unwrap();
 
     let outputs = vm.into_io_handle().get_test_outputs();
     assert_eq!(outputs, test_chars);
@@ -420,7 +420,7 @@ fn can_trap_halt() {
     let mut vm = VM::new();
     vm.set_running(true);
     let command = Command::new(0xF025);
-    vm.run_command(&command);
+    vm.run_command(&command).unwrap();
     assert_eq!(vm.get_running(), false);
 }
 

@@ -1,3 +1,5 @@
+use crate::error::{LC3Error, Result};
+
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) struct Command {
     bytes: u16,
@@ -9,8 +11,8 @@ impl Command {
     }
 
     // The op_code is the leftmost 4 bits of the command
-    pub(crate) fn op_code(&self) -> u8 {
-        self.bit_slice(0, 3) as u8
+    pub(crate) fn op_code(&self) -> Result<u8> {
+        Ok(self.bit_slice(0, 3)? as u8)
     }
 
     pub(crate) fn get_bytes(&self) -> u16 {
@@ -20,22 +22,25 @@ impl Command {
     // Return the bits bitween left and right index (inclusive) as a u16
     // The bits will be rshifted, so the rightmost bit of the output
     // will be the rightmost bit of the u16.
-    pub(crate) fn bit_slice(&self, left: u8, right: u8) -> u16 {
+    pub(crate) fn bit_slice(&self, left: u8, right: u8) -> Result<u16> {
         if right > 15 {
-            panic!("Right index for bit_slice exceeded 15. Value: {}", right);
+            return Err(LC3Error::Internal(format!(
+                "Right index for bit_slice exceeded 15. Value: {}",
+                right
+            )));
         }
 
         if left > right {
-            panic!(
+            return Err(LC3Error::Internal(format!(
                 "Left ({}) for bit_slice exceeded right ({})",
                 left, right
-            );
+            )));
         }
 
         let left_mask = 0xFFFF >> left;
         let masked = self.bytes & left_mask;
         let rshift_size = 15 - right;
-        masked >> rshift_size
+        Ok(masked >> rshift_size)
     }
 }
 
@@ -67,7 +72,7 @@ mod test {
         for (bytes, op_code) in &byte_op_pairs {
             let command = Command::new(*bytes);
             let command_op_code = command.op_code();
-            assert_eq!(*op_code, command_op_code);
+            assert_eq!(*op_code, command_op_code.unwrap());
         }
     }
 }
