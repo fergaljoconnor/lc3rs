@@ -1,3 +1,5 @@
+use crate::error::{LC3Error, Result};
+
 const OP_CODES: [Op;16] = [
     Op::Br,
     Op::Add,
@@ -38,11 +40,12 @@ pub(crate) enum Op {
 }
 
 impl Op {
-    pub(crate) fn from_int(op_code: u8) -> Self {
+    pub(crate) fn from_int(op_code: u8) -> Result<Self> {
         if (op_code as usize) < OP_CODES.len() {
-            return OP_CODES[op_code as usize].clone();
+            return Ok( OP_CODES[op_code as usize].clone());
         } else {
-            panic!("Op code {} out of range", op_code);
+            let err = LC3Error::BadOpCode{code: op_code};
+            Err(err)
         }
     }
 }
@@ -54,7 +57,7 @@ mod test {
     #[test]
     fn can_cast_int_to_instruction() {
         for (code, op) in OP_CODES.iter().enumerate() {
-            assert_eq!(&Op::from_int(code as u8), op);
+            assert_eq!(&Op::from_int(code as u8).unwrap(), op);
         }
     }
 }

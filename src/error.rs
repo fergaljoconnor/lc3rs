@@ -19,6 +19,12 @@ pub enum LC3Error {
     Plugin{source: BoxedError},
     #[error("IO Handle encountered an error: {source}")]
     IO{source: BoxedError},
+    #[error("Bad op code {code} encountered during command parsing")]
+    BadOpCode{code: u8},
+    #[error("Bad trap code {code} encountered during command parsing")]
+    BadTrapCode{code: u8},
+    #[error("Program length {len} exceeds maximum allowed size {max_len}")]
+    ProgramSize{len: usize, max_len: usize},
     #[error("Encountered the following error: {0}")]
     Other(String)
 }
@@ -29,7 +35,7 @@ where ErrType: std::error::Error + 'static
     Box::new(err) as BoxedError
 }
 
-pub(crate) trait BoxErrors<T> {
+pub trait BoxErrors<T> {
     fn box_error(self) -> PublicResult<T>;
 }
 

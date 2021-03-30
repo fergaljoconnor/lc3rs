@@ -1,3 +1,5 @@
+use crate::error::{LC3Error, Result};
+
 pub(crate) enum TrapCode {
     GetC = 0x20,  /* get character from keyboard, not echoed onto the terminal */
     Out = 0x21,   /* output a character */
@@ -8,15 +10,18 @@ pub(crate) enum TrapCode {
 }
 
 impl TrapCode {
-    pub(crate) fn from_int(code: u8) -> Self {
-        match code {
+    pub(crate) fn from_int(code: u8) -> Result<Self> {
+        let code = match code {
             0x20 => Self::GetC,
             0x21 => Self::Out,
             0x22 => Self::PutS,
             0x23 => Self::In,
             0x24 => Self::PutSp,
             0x25 => Self::Halt,
-            _ => panic!("Unrecognised trap code {}", code),
-        }
+            _ => return Err(LC3Error::BadTrapCode{code})
+        };
+
+        Ok(code)
+
     }
 }

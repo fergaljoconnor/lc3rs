@@ -1,6 +1,6 @@
 use crate::command::Command;
 use crate::condition_flags::{FL_NEG, FL_POS, FL_ZRO};
-use crate::error::Result;
+use crate::error::{LC3Error, Result};
 use crate::io::{IOHandle, RealIOHandle};
 use crate::op::{handler, Op};
 use crate::plugin::{Event, Plugin};
@@ -76,19 +76,18 @@ impl<IOType: IOHandle> VM<IOType>
         Ok(())
     }
 
-    pub fn load_program(&mut self, program: &Vec<u16>) {
+    pub fn load_program(&mut self, program: &Vec<u16>) -> Result<()> {
         let max_len = MEMORY_SIZE - PC_START as usize;
         if program.len() > max_len {
-            panic!(
-                "Program length {} exceeds maximum allowed size {}",
-                program.len(),
-                max_len
-            )
+            let err = LC3Error::ProgramSize{len: program.len(), max_len};
+            return Err(err)
         }
 
         for (index, instruction) in program.iter().enumerate() {
             self.mem_write(PC_START + index as u16, *instruction);
         }
+
+        Ok(())
     }
 
     pub(crate) fn mem_read(&mut self, pos: u16) -> u16 {
@@ -169,10 +168,6 @@ impl<IOType: IOHandle> VM<IOType>
     }
 
     pub(crate) fn update_flags(&mut self, register_index: usize) {
-        if register_index > NUM_REGISTERS - 1 {
-            panic!("Register index {} too large", register_index);
-        }
-
         let mut cond_flag = FL_POS;
         let value = self.reg_index_read(register_index as u8);
         if value == 0 {
@@ -226,7 +221,7 @@ impl<IOType: IOHandle> VM<IOType>
         let event = Event::Command{bytes: command.get_bytes()};
         self.notify_plugins(&event);
 
-        let op = Op::from_int(command.op_code().unwrap());
+        let op = Op::from_int(command.op_code()?)?;
         match op {
             Op::Br => handler::branch(self, command),
             Op::Add => handler::add(self, command),
@@ -311,7 +306,7 @@ mod test {
 
         let io_handle = TestIOHandle::new();
         let mut vm = VM::new_with_io(io_handle);
-        vm.load_program(&program);
+        vm.load_program(&program).unwrap();
         vm.run().unwrap();
 
         let io_handle = vm.into_io_handle();

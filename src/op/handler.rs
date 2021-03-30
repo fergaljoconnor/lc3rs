@@ -190,7 +190,7 @@ pub(crate) fn load_effective_address<IO: IOHandle>(vm: &mut VM<IO>, command: &Co
 pub(crate) fn trap<IO: IOHandle>(vm: &mut VM<IO>, command: &Command) -> Result<()> {
     let code = command.bit_slice(8, 15)? as u8;
     let code = TrapCode::from_int(code);
-    match code {
+    match code? {
         TrapCode::GetC => handle_trap::getchar(vm),
         TrapCode::Out => handle_trap::trap_out(vm),
         TrapCode::PutS => handle_trap::put_string(vm),
