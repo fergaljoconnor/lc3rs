@@ -1,6 +1,6 @@
 use super::trap_handler as handle_trap;
 use crate::command::Command;
-use crate::error::{LC3Error, Result};
+use crate::error::{LC3Error, LC3Result};
 use crate::io::IOHandle;
 use crate::register::Register::{RCond, RPC, RR7};
 use crate::trap::TrapCode;
@@ -8,7 +8,7 @@ use crate::utils::sign_extend;
 use crate::vm::VM;
 use crate::wrapping_add;
 
-pub(crate) fn branch<IO: IOHandle>(vm: &mut VM<IO>, command: &Command) -> Result<()> {
+pub(crate) fn branch<IO: IOHandle>(vm: &mut VM<IO>, command: &Command) -> LC3Result<()> {
     let test_flag = command.bit_slice(4, 6)?;
     let flags = vm.reg_read(RCond);
     let will_branch = (flags & test_flag) != 0;
@@ -22,7 +22,7 @@ pub(crate) fn branch<IO: IOHandle>(vm: &mut VM<IO>, command: &Command) -> Result
     Ok(())
 }
 
-pub(crate) fn add<IO: IOHandle>(vm: &mut VM<IO>, command: &Command) -> Result<()> {
+pub(crate) fn add<IO: IOHandle>(vm: &mut VM<IO>, command: &Command) -> LC3Result<()> {
     let target_reg = command.bit_slice(4, 6)? as u8;
     let left = vm.reg_index_read(command.bit_slice(7, 9)? as u8);
     let immediate = command.bit_slice(10, 10)? == 1;
@@ -39,7 +39,7 @@ pub(crate) fn add<IO: IOHandle>(vm: &mut VM<IO>, command: &Command) -> Result<()
     Ok(())
 }
 
-pub(crate) fn load<IO: IOHandle>(vm: &mut VM<IO>, command: &Command) -> Result<()> {
+pub(crate) fn load<IO: IOHandle>(vm: &mut VM<IO>, command: &Command) -> LC3Result<()> {
     let target_reg = command.bit_slice(4, 6)? as u8;
     let offset = sign_extend(command.bit_slice(7, 15)?, 9);
     let pc = vm.reg_read(RPC);
@@ -51,7 +51,7 @@ pub(crate) fn load<IO: IOHandle>(vm: &mut VM<IO>, command: &Command) -> Result<(
     Ok(())
 }
 
-pub(crate) fn store<IO: IOHandle>(vm: &mut VM<IO>, command: &Command) -> Result<()> {
+pub(crate) fn store<IO: IOHandle>(vm: &mut VM<IO>, command: &Command) -> LC3Result<()> {
     let source = command.bit_slice(4, 6)? as u8;
     let offset = sign_extend(command.bit_slice(7, 15)?, 9);
     let target = wrapping_add!(vm.reg_read(RPC), offset);
@@ -61,7 +61,7 @@ pub(crate) fn store<IO: IOHandle>(vm: &mut VM<IO>, command: &Command) -> Result<
     Ok(())
 }
 
-pub(crate) fn jump_register<IO: IOHandle>(vm: &mut VM<IO>, command: &Command) -> Result<()> {
+pub(crate) fn jump_register<IO: IOHandle>(vm: &mut VM<IO>, command: &Command) -> LC3Result<()> {
     // Save program counter
     let pc = vm.reg_read(RPC);
     vm.reg_write(RR7, pc);
@@ -81,7 +81,7 @@ pub(crate) fn jump_register<IO: IOHandle>(vm: &mut VM<IO>, command: &Command) ->
     Ok(())
 }
 
-pub(crate) fn and<IO: IOHandle>(vm: &mut VM<IO>, command: &Command) -> Result<()> {
+pub(crate) fn and<IO: IOHandle>(vm: &mut VM<IO>, command: &Command) -> LC3Result<()> {
     let target_reg = command.bit_slice(4, 6)? as u8;
     let left = vm.reg_index_read(command.bit_slice(7, 9)? as u8);
     let immediate = command.bit_slice(10, 10)? == 1;
@@ -98,7 +98,7 @@ pub(crate) fn and<IO: IOHandle>(vm: &mut VM<IO>, command: &Command) -> Result<()
     Ok(())
 }
 
-pub(crate) fn load_register<IO: IOHandle>(vm: &mut VM<IO>, command: &Command) -> Result<()> {
+pub(crate) fn load_register<IO: IOHandle>(vm: &mut VM<IO>, command: &Command) -> LC3Result<()> {
     let target = command.bit_slice(4, 6)? as u8;
     let base = command.bit_slice(7, 9)? as u8;
     let offset = sign_extend(command.bit_slice(10, 15)?, 6);
@@ -110,7 +110,7 @@ pub(crate) fn load_register<IO: IOHandle>(vm: &mut VM<IO>, command: &Command) ->
     Ok(())
 }
 
-pub(crate) fn store_register<IO: IOHandle>(vm: &mut VM<IO>, command: &Command) -> Result<()> {
+pub(crate) fn store_register<IO: IOHandle>(vm: &mut VM<IO>, command: &Command) -> LC3Result<()> {
     let source = command.bit_slice(4, 6)? as u8;
     let base_register = command.bit_slice(7, 9)? as u8;
     let offset = sign_extend(command.bit_slice(10, 15)?, 6);
@@ -121,13 +121,13 @@ pub(crate) fn store_register<IO: IOHandle>(vm: &mut VM<IO>, command: &Command) -
     Ok(())
 }
 
-pub(crate) fn rti<IO: IOHandle>(_vm: &mut VM<IO>, _command: &Command) -> Result<()> {
+pub(crate) fn rti<IO: IOHandle>(_vm: &mut VM<IO>, _command: &Command) -> LC3Result<()> {
     Err(LC3Error::Internal(
         "Attempt to execute unimplemented op code".to_string(),
     ))
 }
 
-pub(crate) fn not<IO: IOHandle>(vm: &mut VM<IO>, command: &Command) -> Result<()> {
+pub(crate) fn not<IO: IOHandle>(vm: &mut VM<IO>, command: &Command) -> LC3Result<()> {
     let target = command.bit_slice(4, 6)? as u8;
     let source = command.bit_slice(7, 9)? as u8;
     let negated = !vm.reg_index_read(source);
@@ -137,7 +137,7 @@ pub(crate) fn not<IO: IOHandle>(vm: &mut VM<IO>, command: &Command) -> Result<()
     Ok(())
 }
 
-pub(crate) fn load_indirect<IO: IOHandle>(vm: &mut VM<IO>, command: &Command) -> Result<()> {
+pub(crate) fn load_indirect<IO: IOHandle>(vm: &mut VM<IO>, command: &Command) -> LC3Result<()> {
     let pc_offset = sign_extend(command.bit_slice(7, 15)?, 9);
     let pc = vm.reg_read(RPC);
 
@@ -151,7 +151,7 @@ pub(crate) fn load_indirect<IO: IOHandle>(vm: &mut VM<IO>, command: &Command) ->
     Ok(())
 }
 
-pub(crate) fn store_indirect<IO: IOHandle>(vm: &mut VM<IO>, command: &Command) -> Result<()> {
+pub(crate) fn store_indirect<IO: IOHandle>(vm: &mut VM<IO>, command: &Command) -> LC3Result<()> {
     let source = command.bit_slice(4, 6)? as u8;
     let offset = sign_extend(command.bit_slice(7, 15)?, 9);
     let pc = vm.reg_read(RPC);
@@ -163,7 +163,7 @@ pub(crate) fn store_indirect<IO: IOHandle>(vm: &mut VM<IO>, command: &Command) -
     Ok(())
 }
 
-pub(crate) fn jump<IO: IOHandle>(vm: &mut VM<IO>, command: &Command) -> Result<()> {
+pub(crate) fn jump<IO: IOHandle>(vm: &mut VM<IO>, command: &Command) -> LC3Result<()> {
     let address_reg = command.bit_slice(7, 9)? as u8;
     let address = vm.reg_index_read(address_reg);
     vm.reg_write(RPC, address);
@@ -171,13 +171,13 @@ pub(crate) fn jump<IO: IOHandle>(vm: &mut VM<IO>, command: &Command) -> Result<(
     Ok(())
 }
 
-pub(crate) fn reserved<IO: IOHandle>(_vm: &mut VM<IO>, _command: &Command) -> Result<()> {
+pub(crate) fn reserved<IO: IOHandle>(_vm: &mut VM<IO>, _command: &Command) -> LC3Result<()> {
     Err(LC3Error::Internal(
         "Attempt to execute unimplemented op code".to_string(),
     ))
 }
 
-pub(crate) fn load_effective_address<IO: IOHandle>(vm: &mut VM<IO>, command: &Command) -> Result<()> {
+pub(crate) fn load_effective_address<IO: IOHandle>(vm: &mut VM<IO>, command: &Command) -> LC3Result<()> {
     let target = command.bit_slice(4, 6)? as u8;
     let offset = sign_extend(command.bit_slice(7, 15)?, 9);
     let effective_address = wrapping_add!(vm.reg_read(RPC), offset);
@@ -187,7 +187,7 @@ pub(crate) fn load_effective_address<IO: IOHandle>(vm: &mut VM<IO>, command: &Co
     Ok(())
 }
 
-pub(crate) fn trap<IO: IOHandle>(vm: &mut VM<IO>, command: &Command) -> Result<()> {
+pub(crate) fn trap<IO: IOHandle>(vm: &mut VM<IO>, command: &Command) -> LC3Result<()> {
     let code = command.bit_slice(8, 15)? as u8;
     let code = TrapCode::from_int(code);
     match code? {

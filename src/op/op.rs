@@ -1,4 +1,4 @@
-use crate::error::{LC3Error, Result};
+use crate::error::{LC3Error, LC3Result};
 
 const OP_CODES: [Op;16] = [
     Op::Br,
@@ -40,7 +40,7 @@ pub(crate) enum Op {
 }
 
 impl Op {
-    pub(crate) fn from_int(op_code: u8) -> Result<Self> {
+    pub(crate) fn from_int(op_code: u8) -> LC3Result<Self> {
         if (op_code as usize) < OP_CODES.len() {
             return Ok( OP_CODES[op_code as usize].clone());
         } else {

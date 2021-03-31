@@ -1,4 +1,4 @@
-use crate::error::{LC3Error, Result};
+use crate::error::{LC3Error, LC3Result};
 
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) struct Command {
@@ -11,7 +11,7 @@ impl Command {
     }
 
     // The op_code is the leftmost 4 bits of the command
-    pub(crate) fn op_code(&self) -> Result<u8> {
+    pub(crate) fn op_code(&self) -> LC3Result<u8> {
         Ok(self.bit_slice(0, 3)? as u8)
     }
 
@@ -22,7 +22,7 @@ impl Command {
     // Return the bits bitween left and right index (inclusive) as a u16
     // The bits will be rshifted, so the rightmost bit of the output
     // will be the rightmost bit of the u16.
-    pub(crate) fn bit_slice(&self, left: u8, right: u8) -> Result<u16> {
+    pub(crate) fn bit_slice(&self, left: u8, right: u8) -> LC3Result<u16> {
         if right > 15 {
             return Err(LC3Error::Internal(format!(
                 "Right index for bit_slice exceeded 15. Value: {}",

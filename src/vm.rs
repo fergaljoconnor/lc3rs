@@ -1,6 +1,6 @@
 use crate::command::Command;
 use crate::condition_flags::{FL_NEG, FL_POS, FL_ZRO};
-use crate::error::{LC3Error, Result};
+use crate::error::{LC3Error, LC3Result};
 use crate::io::{IOHandle, RealIOHandle};
 use crate::op::{handler, Op};
 use crate::plugin::{Event, Plugin};
@@ -20,8 +20,7 @@ const PC_START: u16 = 0x3000; // Initial program counter
 const KB_STATUS_POS: u16 = 0xFE00; // Keyboard Status Register
 const KB_DATA_POS: u16 = 0xFE02; // Keyboard Data Register
 
-pub struct VM<IOType: IOHandle>
-{
+pub struct VM<IOType: IOHandle> {
     // TODO: Splitting the state between a VM state component and
     // a  plugin manager component would make it easier for the compiler to
     // reason about mutability during plugin notifications and push some of
@@ -37,12 +36,11 @@ impl VM<RealIOHandle> {
     // Want the default constructor to use a standard IO Handle, hence
     // the specific treatment.
     pub fn new() -> Self {
-        Self::new_with_io( RealIOHandle::new() )
+        Self::new_with_io(RealIOHandle::new())
     }
 }
 
-impl<IOType: IOHandle> VM<IOType>
-{
+impl<IOType: IOHandle> VM<IOType> {
     pub fn add_plugin(&mut self, plugin: Box<dyn Plugin<IOType>>) {
         self.plugins.as_mut().map(|s| s.push(plugin));
     }
@@ -61,7 +59,7 @@ impl<IOType: IOHandle> VM<IOType>
         }
     }
 
-    pub fn run(&mut self) -> Result<()> {
+    pub fn run(&mut self) -> LC3Result<()> {
         self.set_running(true);
         self.reg_write(RPC, PC_START);
 
@@ -76,11 +74,14 @@ impl<IOType: IOHandle> VM<IOType>
         Ok(())
     }
 
-    pub fn load_program(&mut self, program: &Vec<u16>) -> Result<()> {
+    pub fn load_program(&mut self, program: &Vec<u16>) -> LC3Result<()> {
         let max_len = MEMORY_SIZE - PC_START as usize;
         if program.len() > max_len {
-            let err = LC3Error::ProgramSize{len: program.len(), max_len};
-            return Err(err)
+            let err = LC3Error::ProgramSize {
+                len: program.len(),
+                max_len,
+            };
+            return Err(err);
         }
 
         for (index, instruction) in program.iter().enumerate() {
@@ -109,13 +110,18 @@ impl<IOType: IOHandle> VM<IOType>
         };
 
         let val = self.memory[pos as usize];
-        self.notify_plugins(&Event::MemGet {location: pos, value: val});
+        self.notify_plugins(&Event::MemGet {
+            location: pos,
+            value: val,
+        });
         val
-
     }
 
     pub(crate) fn mem_write(&mut self, pos: u16, val: u16) {
-        self.notify_plugins(&Event::MemSet {location: pos, value: val});
+        self.notify_plugins(&Event::MemSet {
+            location: pos,
+            value: val,
+        });
         self.memory[pos as usize] = val
     }
 
@@ -129,41 +135,40 @@ impl<IOType: IOHandle> VM<IOType>
 
     pub(crate) fn reg_index_read(&mut self, index: u8) -> u16 {
         let value = self.registers[index as usize];
-        self.notify_plugins(&Event::RegGet{index, value});
+        self.notify_plugins(&Event::RegGet { index, value });
         value
-
     }
 
     pub(crate) fn reg_index_write(&mut self, index: u8, val: u16) {
-        self.notify_plugins(&Event::RegSet{index, value: val});
+        self.notify_plugins(&Event::RegSet { index, value: val });
         self.registers[index as usize] = val;
     }
 
     pub(crate) fn putchar(&mut self, ch: char) {
-        self.notify_plugins(&Event::CharPut{ch});
+        self.notify_plugins(&Event::CharPut { ch });
         self.io_handle.putchar(ch).unwrap()
     }
 
     pub(crate) fn getchar(&mut self) -> char {
         let ch = self.io_handle.getchar().unwrap();
-        self.notify_plugins(&Event::CharGet{ch});
+        self.notify_plugins(&Event::CharGet { ch });
         ch
     }
 
     pub(crate) fn is_key_down(&mut self) -> bool {
         let key_down = self.io_handle.is_key_down().unwrap();
-        self.notify_plugins(&Event::KeyDownGet{value: key_down});
+        self.notify_plugins(&Event::KeyDownGet { value: key_down });
         key_down
     }
 
     pub(crate) fn get_running(&mut self) -> bool {
         let value = self.running;
-        self.notify_plugins(&Event::RunningGet {value});
+        self.notify_plugins(&Event::RunningGet { value });
         value
     }
 
     pub(crate) fn set_running(&mut self, val: bool) {
-        self.notify_plugins(&Event::RunningSet {value: val});
+        self.notify_plugins(&Event::RunningSet { value: val });
         self.running = val;
     }
 
@@ -179,7 +184,7 @@ impl<IOType: IOHandle> VM<IOType>
         self.reg_write(RCond, cond_flag);
     }
 
-    pub(crate) fn notify_plugins(&mut self, event: &Event) {
+    pub(crate) fn notify_plugins(&mut self, event: &Event) -> LC3Result<()> {
         // This memory swapping dance prevents a safety issue.
         // Basically, if we were iterating over the plugins vector contained
         // in the VM while also allowing the plugins to mutate the VM while
@@ -203,23 +208,32 @@ impl<IOType: IOHandle> VM<IOType>
 
         if self.plugins.is_none() {
             // We're in the notifications loop, don't push the event
-            return;
+            return Ok(());
         }
 
         let mut plugins_option = None;
         std::mem::swap(&mut plugins_option, &mut self.plugins);
-        let mut plugins = plugins_option.unwrap();
 
-        for plugin in &mut plugins  {
-            plugin.handle_event(self, event)
+        // The option should never be None by here, but this ok_or call
+        // handles that just in case.
+        let mut plugins = plugins_option.ok_or(LC3Error::Internal(
+            "None was returned for plugins after None check".to_string(),
+        ))?;
+
+        for plugin in &mut plugins {
+            plugin.handle_event(self, event)?
         }
 
         self.plugins = Some(plugins);
+
+        Ok(())
     }
 
-    pub(crate) fn run_command(&mut self, command: &Command) -> Result<()> {
-        let event = Event::Command{bytes: command.get_bytes()};
-        self.notify_plugins(&event);
+    pub(crate) fn run_command(&mut self, command: &Command) -> LC3Result<()> {
+        let event = Event::Command {
+            bytes: command.get_bytes(),
+        };
+        self.notify_plugins(&event)?;
 
         let op = Op::from_int(command.op_code()?)?;
         match op {

@@ -1,10 +1,11 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use super::Event::*;
-use super::{Event, Plugin};
+use crate::error::LC3Result;
 use crate::io::IOHandle;
 use crate::vm::VM;
+use super::Event::*;
+use super::{Event, Plugin};
 
 type EventsReference = Rc<RefCell<Vec<Event>>>;
 
@@ -25,8 +26,9 @@ impl TestPlugin {
 }
 
 impl<IOType: IOHandle> Plugin<IOType> for TestPlugin {
-    fn handle_event(&mut self, _vm: &mut VM<IOType>, event: &Event) {
-        self.events.borrow_mut().push(event.clone())
+    fn handle_event(&mut self, _vm: &mut VM<IOType>, event: &Event) -> LC3Result<()> {
+        self.events.borrow_mut().push(event.clone());
+        Ok(())
     }
 }
 
@@ -56,7 +58,7 @@ fn can_push_events_to_plugin() {
     let events_ref = plugin.get_events_ref();
 
     for event in &test_events {
-        plugin.handle_event(&mut vm, event)
+        plugin.handle_event(&mut vm, event);
     }
 
     let written_events = events_ref.borrow().clone();

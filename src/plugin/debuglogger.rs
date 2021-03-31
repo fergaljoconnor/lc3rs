@@ -1,10 +1,11 @@
 use std::io::Write;
 
-use crate::command::Command;
-use crate::op::Op;
-use crate::io::IOHandle;
-use crate::vm::VM;
 use super::{Event, Plugin};
+use crate::command::Command;
+use crate::error::{BoxErrors, LC3Error, LC3Result};
+use crate::io::IOHandle;
+use crate::op::Op;
+use crate::vm::VM;
 
 pub struct DebugLogger<Sink: Write> {
     sink: Sink,
@@ -22,22 +23,21 @@ impl<Sink: Write> DebugLogger<Sink> {
 }
 
 impl<Sink: Write, IOType: IOHandle> Plugin<IOType> for DebugLogger<Sink> {
-    fn handle_event(&mut self, _: &mut VM<IOType>, event: &Event) {
-        // TODO: Proper error propagation
+    fn handle_event(&mut self, _: &mut VM<IOType>, event: &Event) -> LC3Result<()> {
         self.sink
             .write(debug_format(event).as_bytes())
-            .expect("Debug Logger Encountered an issue writing to log");
-        self.sink.write(b"\n").expect("Debug Logger Encountered an issue writing to log");
-        self.sink
-            .flush()
-            .expect("Debug Logger Encountered an issue flushing log");
+            .map_plugin_error()?;
+        self.sink.write(b"\n").map_plugin_error()?;
+        self.sink.flush().map_plugin_error()?;
+
+        Ok(())
     }
 }
 
 fn debug_format(event: &Event) -> String {
     match event {
-        Event::Command{bytes} => debug_format_command(*bytes),
-        _ => format!("{:?}", event)
+        Event::Command { bytes } => debug_format_command(*bytes),
+        _ => format!("{:?}", event),
     }
 }
 
@@ -46,7 +46,6 @@ fn debug_format_command(bytes: u16) -> String {
     let op = Op::from_int(command.op_code().unwrap());
     format!("Command: {{ bytes: {:16b}, op: {:?} }}", bytes, op)
 }
-
 
 #[cfg(test)]
 mod test {

@@ -1,3 +1,4 @@
+use crate::error::LC3Result;
 use crate::io::IOHandle;
 use crate::vm::VM;
 
@@ -16,6 +17,5 @@ pub enum Event {
 }
 
 pub trait Plugin<IOType: IOHandle> {
-    fn handle_event(&mut self, vm: &mut VM<IOType>, event: &Event);
+    fn handle_event(&mut self, vm: &mut VM<IOType>, event: &Event) -> LC3Result<()>;
 }
-
