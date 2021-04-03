@@ -91,7 +91,10 @@ fn can_store() {
         vm.reg_index_write(reg, test_val);
         vm.reg_write(RPC, INITIAL_PC);
         vm.run_command(&command).unwrap();
-        assert_eq!(vm.mem_read((INITIAL_PC as i16 + offset) as u16), test_val);
+        assert_eq!(
+            vm.mem_read((INITIAL_PC as i16 + offset) as u16).unwrap(),
+            test_val
+        );
     }
 }
 
@@ -199,7 +202,7 @@ fn can_store_register() {
         let command = Command::new(command);
         vm.run_command(&command).unwrap();
         assert_eq!(
-            vm.mem_read((base_reg_val as i16 + offset) as u16),
+            vm.mem_read((base_reg_val as i16 + offset) as u16).unwrap(),
             store_val
         );
     }
@@ -269,7 +272,7 @@ fn can_store_indirect() {
         vm.reg_write(source_reg, store_val);
         let command = Command::new(command);
         vm.run_command(&command).unwrap();
-        assert_eq!(vm.mem_read(address), store_val);
+        assert_eq!(vm.mem_read(address).unwrap(), store_val);
     }
 }
 
@@ -404,7 +407,7 @@ fn can_trap_put_byte_string() {
 
         let mem_offset = pos / 2;
         let address = start_address + mem_offset as u16;
-        let new_val =  vm.mem_read(address) | mask;
+        let new_val = vm.mem_read(address).unwrap() | mask;
         vm.mem_write(address, new_val);
     }
 

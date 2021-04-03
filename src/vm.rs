@@ -67,7 +67,7 @@ impl<IOType: IOHandle> VM<IOType> {
             let program_count = self.reg_read(RPC);
             self.reg_write(RPC, program_count + 1);
 
-            let command = Command::new(self.mem_read(program_count));
+            let command = Command::new(self.mem_read(program_count)?);
             self.run_command(&command)?;
         }
 
@@ -91,7 +91,7 @@ impl<IOType: IOHandle> VM<IOType> {
         Ok(())
     }
 
-    pub(crate) fn mem_read(&mut self, pos: u16) -> u16 {
+    pub(crate) fn mem_read(&mut self, pos: u16) -> LC3Result<u16> {
         // Deal with the mem-mapped device registers
         if pos == KB_STATUS_POS {
             if self.is_key_down() {
@@ -113,8 +113,8 @@ impl<IOType: IOHandle> VM<IOType> {
         self.notify_plugins(&Event::MemGet {
             location: pos,
             value: val,
-        });
-        val
+        })?;
+        Ok(val)
     }
 
     pub(crate) fn mem_write(&mut self, pos: u16, val: u16) {
@@ -299,8 +299,11 @@ mod test {
         // register read fails (and should, since we're not on a physical
         // machine there's nothing independently updating the registers
         // on its own schedule).
-        assert_eq!(vm.mem_read(super::KB_STATUS_POS), 1 << 15);
-        assert_eq!(vm.mem_read(super::KB_DATA_POS) as u8 as char, test_char);
+        assert_eq!(vm.mem_read(super::KB_STATUS_POS).unwrap(), 1 << 15);
+        assert_eq!(
+            vm.mem_read(super::KB_DATA_POS).unwrap() as u8 as char,
+            test_char
+        );
     }
 
     #[test]

@@ -44,7 +44,7 @@ pub(crate) fn load<IO: IOHandle>(vm: &mut VM<IO>, command: &Command) -> LC3Resul
     let offset = sign_extend(command.bit_slice(7, 15)?, 9);
     let pc = vm.reg_read(RPC);
     let address = wrapping_add!(pc, offset);
-    let val = vm.mem_read(address);
+    let val = vm.mem_read(address)?;
     vm.reg_index_write(target_reg, val);
     vm.update_flags(target_reg.into());
 
@@ -103,7 +103,7 @@ pub(crate) fn load_register<IO: IOHandle>(vm: &mut VM<IO>, command: &Command) ->
     let base = command.bit_slice(7, 9)? as u8;
     let offset = sign_extend(command.bit_slice(10, 15)?, 6);
     let address = wrapping_add!(vm.reg_index_read(base), offset);
-    let val = vm.mem_read(address);
+    let val = vm.mem_read(address)?;
     vm.reg_index_write(target, val);
     vm.update_flags(target.into());
 
@@ -142,8 +142,8 @@ pub(crate) fn load_indirect<IO: IOHandle>(vm: &mut VM<IO>, command: &Command) ->
     let pc = vm.reg_read(RPC);
 
     let target = command.bit_slice(4, 6)? as u8;
-    let final_address = vm.mem_read(wrapping_add!(pc, pc_offset));
-    let val = vm.mem_read(final_address);
+    let final_address = vm.mem_read(wrapping_add!(pc, pc_offset))?;
+    let val = vm.mem_read(final_address)?;
 
     vm.reg_index_write(target, val);
     vm.update_flags(target.into());
@@ -156,7 +156,7 @@ pub(crate) fn store_indirect<IO: IOHandle>(vm: &mut VM<IO>, command: &Command) -
     let offset = sign_extend(command.bit_slice(7, 15)?, 9);
     let pc = vm.reg_read(RPC);
     let address = wrapping_add!(pc, offset);
-    let final_address = vm.mem_read(address);
+    let final_address = vm.mem_read(address)?;
     let val = vm.reg_index_read(source);
     vm.mem_write(final_address, val);
 
@@ -191,12 +191,12 @@ pub(crate) fn trap<IO: IOHandle>(vm: &mut VM<IO>, command: &Command) -> LC3Resul
     let code = command.bit_slice(8, 15)? as u8;
     let code = TrapCode::from_int(code);
     match code? {
-        TrapCode::GetC => handle_trap::getchar(vm),
-        TrapCode::Out => handle_trap::trap_out(vm),
-        TrapCode::PutS => handle_trap::put_string(vm),
-        TrapCode::In => handle_trap::trap_in(vm),
-        TrapCode::PutSp => handle_trap::put_byte_string(vm),
-        TrapCode::Halt => handle_trap::trap_halt(vm),
+        TrapCode::GetC => handle_trap::getchar(vm)?,
+        TrapCode::Out => handle_trap::trap_out(vm)?,
+        TrapCode::PutS => handle_trap::put_string(vm)?,
+        TrapCode::In => handle_trap::trap_in(vm)?,
+        TrapCode::PutSp => handle_trap::put_byte_string(vm)?,
+        TrapCode::Halt => handle_trap::trap_halt(vm)?,
     };
 
     Ok(())
