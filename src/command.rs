@@ -46,10 +46,11 @@ impl Command {
 
 #[cfg(test)]
 mod test {
+    use crate::error::LC3Result;
     use super::Command;
 
     #[test]
-    fn can_read_op_codes() {
+    fn can_read_op_codes() -> LC3Result<()> {
         let byte_op_pairs = [
             (0x0000, 0),
             (0x1000, 1),
@@ -72,7 +73,9 @@ mod test {
         for (bytes, op_code) in &byte_op_pairs {
             let command = Command::new(*bytes);
             let command_op_code = command.op_code();
-            assert_eq!(*op_code, command_op_code.unwrap());
+            assert_eq!(*op_code, command_op_code?);
         }
+
+        Ok(())
     }
 }

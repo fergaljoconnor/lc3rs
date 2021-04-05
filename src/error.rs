@@ -41,6 +41,7 @@ where
 pub trait BoxErrors<T> {
     fn box_error(self) -> PublicResult<T>;
     fn map_plugin_error(self) -> LC3Result<T>;
+    fn map_io_error(self) -> LC3Result<T>;
 }
 
 impl<T, E> BoxErrors<T> for StdResult<T, E>
@@ -54,4 +55,9 @@ where
     fn map_plugin_error(self) -> LC3Result<T> {
         self.box_error().map_err(|source| LC3Error::Plugin { source } )
     }
+
+    fn map_io_error(self) -> LC3Result<T> {
+        self.box_error().map_err(|source| LC3Error::IO { source } )
+    }
+
 }

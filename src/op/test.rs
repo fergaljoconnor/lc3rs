@@ -1,5 +1,6 @@
 use crate::command::Command;
 use crate::condition_flags::{FL_NEG, FL_POS, FL_ZRO};
+use crate::error::LC3Result;
 use crate::io::TestIOHandle;
 use crate::register::Register;
 use crate::register::Register::{RCond, RPC};
@@ -8,11 +9,11 @@ use crate::vm::VM;
 const INITIAL_PC: u16 = 0x0F00;
 
 #[test]
-fn can_add() {
+fn can_add() -> LC3Result<()> {
     let mut vm = VM::new();
-    vm.reg_index_write(0, 0);
-    vm.reg_index_write(1, 1);
-    vm.reg_index_write(2, 2);
+    vm.reg_index_write(0, 0)?;
+    vm.reg_index_write(1, 1)?;
+    vm.reg_index_write(2, 2)?;
 
     let command_results = vec![
         // Command to add register 1 to 2 and put result in register 0
@@ -25,14 +26,16 @@ fn can_add() {
 
     for (command, result, cond) in command_results {
         let command = Command::new(command);
-        vm.run_command(&command).unwrap();
-        assert_eq!(vm.reg_index_read(0), result);
-        assert_eq!(vm.reg_read(Register::RCond), cond);
-    }
+        vm.run_command(&command)?;
+        assert_eq!(vm.reg_index_read(0)?, result);
+        assert_eq!(vm.reg_read(Register::RCond)?, cond);
+    };
+
+    Ok(())
 }
 
 #[test]
-fn can_branch() {
+fn can_branch() -> LC3Result<()> {
     let command_cond_jump: Vec<(u16, u16, i16)> = vec![
         (0b0000_1000_0000_0100, FL_NEG, 4),
         (0b0000_1000_0000_0100, FL_POS, 0),
@@ -49,15 +52,17 @@ fn can_branch() {
     for (raw_command, cond, jump) in command_cond_jump {
         let mut vm = VM::new();
         let command = Command::new(raw_command);
-        vm.reg_write(Register::RCond, cond);
-        vm.reg_write(Register::RPC, INITIAL_PC);
-        vm.run_command(&command).unwrap();
-        assert_eq!(vm.reg_read(Register::RPC) as i16, INITIAL_PC as i16 + jump);
+        vm.reg_write(Register::RCond, cond)?;
+        vm.reg_write(Register::RPC, INITIAL_PC)?;
+        vm.run_command(&command)?;
+        assert_eq!(vm.reg_read(Register::RPC)? as i16, INITIAL_PC as i16 + jump);
     }
+
+    Ok(())
 }
 
 #[test]
-fn can_load() {
+fn can_load() -> LC3Result<()> {
     let command_reg_val_offset_cond: Vec<(u16, usize, u16, i16, u16)> = vec![
         (0b0010_0000_0000_0000, 0, 0x0EFE, 0, FL_POS),
         (0b0010_0011_1111_1111, 1, 0xFEFE, -1, FL_NEG),
@@ -67,16 +72,18 @@ fn can_load() {
     for (command, reg, val, offset, cond) in command_reg_val_offset_cond {
         let mut vm = VM::new();
         let command = Command::new(command);
-        vm.reg_write(RPC, INITIAL_PC);
-        vm.mem_write((INITIAL_PC as i16 + offset) as u16, val);
-        vm.run_command(&command).unwrap();
-        assert_eq!(vm.reg_index_read(reg as u8), val);
-        assert_eq!(vm.reg_read(RCond), cond);
+        vm.reg_write(RPC, INITIAL_PC)?;
+        vm.mem_write((INITIAL_PC as i16 + offset) as u16, val)?;
+        vm.run_command(&command)?;
+        assert_eq!(vm.reg_index_read(reg as u8)?, val);
+        assert_eq!(vm.reg_read(RCond)?, cond);
     }
+
+    Ok(())
 }
 
 #[test]
-fn can_store() {
+fn can_store() -> LC3Result<()> {
     let test_val = 0xFEFA;
 
     let command_reg_offset: Vec<(u16, u8, i16)> = vec![
@@ -88,18 +95,20 @@ fn can_store() {
     for (command, reg, offset) in command_reg_offset {
         let mut vm = VM::new();
         let command = Command::new(command);
-        vm.reg_index_write(reg, test_val);
-        vm.reg_write(RPC, INITIAL_PC);
-        vm.run_command(&command).unwrap();
+        vm.reg_index_write(reg, test_val)?;
+        vm.reg_write(RPC, INITIAL_PC)?;
+        vm.run_command(&command)?;
         assert_eq!(
-            vm.mem_read((INITIAL_PC as i16 + offset) as u16).unwrap(),
+            vm.mem_read((INITIAL_PC as i16 + offset) as u16)?,
             test_val
         );
     }
+
+    Ok(())
 }
 
 #[test]
-fn can_jump_register() {
+fn can_jump_register() -> LC3Result<()> {
     // Tests using base register mode
     // Tuple format: (command, register containing jump address, jump address)
     let base_test_cases: Vec<(u16, u8, u16)> = vec![
@@ -111,11 +120,11 @@ fn can_jump_register() {
     for (command, register, address) in base_test_cases {
         let mut vm = VM::new();
         let command = Command::new(command);
-        vm.reg_write(RPC, INITIAL_PC);
-        vm.reg_index_write(register, address);
-        vm.run_command(&command).unwrap();
-        assert_eq!(vm.reg_read(Register::RR7), INITIAL_PC);
-        assert_eq!(vm.reg_read(RPC), address);
+        vm.reg_write(RPC, INITIAL_PC)?;
+        vm.reg_index_write(register, address)?;
+        vm.run_command(&command)?;
+        assert_eq!(vm.reg_read(Register::RR7)?, INITIAL_PC);
+        assert_eq!(vm.reg_read(RPC)?, address);
     }
 
     // Tests using offset mode
@@ -129,19 +138,21 @@ fn can_jump_register() {
     for (command, offset) in offset_test_cases {
         let mut vm = VM::new();
         let command = Command::new(command);
-        vm.reg_write(RPC, INITIAL_PC);
-        vm.run_command(&command).unwrap();
-        assert_eq!(vm.reg_read(Register::RR7), INITIAL_PC);
-        assert_eq!(vm.reg_read(RPC), ((INITIAL_PC as i16) + offset) as u16);
+        vm.reg_write(RPC, INITIAL_PC)?;
+        vm.run_command(&command)?;
+        assert_eq!(vm.reg_read(Register::RR7)?, INITIAL_PC);
+        assert_eq!(vm.reg_read(RPC)?, ((INITIAL_PC as i16) + offset) as u16);
     }
+
+    Ok(())
 }
 
 #[test]
-fn can_and() {
+fn can_and() -> LC3Result<()> {
     let mut vm = VM::new();
-    vm.reg_index_write(0, 0);
-    vm.reg_index_write(1, 1);
-    vm.reg_index_write(2, 0xFFFF);
+    vm.reg_index_write(0, 0)?;
+    vm.reg_index_write(1, 1)?;
+    vm.reg_index_write(2, 0xFFFF)?;
 
     let command_result_cond = vec![
         // And register 1 with 2 and put result in register 0
@@ -154,14 +165,16 @@ fn can_and() {
 
     for (command, result, cond) in command_result_cond {
         let command = Command::new(command);
-        vm.run_command(&command).unwrap();
-        assert_eq!(vm.reg_index_read(0), result);
-        assert_eq!(vm.reg_read(RCond), cond);
+        vm.run_command(&command)?;
+        assert_eq!(vm.reg_index_read(0)?, result);
+        assert_eq!(vm.reg_read(RCond)?, cond);
     }
+
+    Ok(())
 }
 
 #[test]
-fn can_load_register() {
+fn can_load_register() -> LC3Result<()> {
     let base_reg = Register::RR4;
     let base_reg_val = 0x0FAE;
 
@@ -173,17 +186,19 @@ fn can_load_register() {
 
     for (command, offset, mem_val, cond) in test_cases {
         let mut vm = VM::new();
-        vm.reg_write(base_reg, base_reg_val);
-        vm.mem_write((base_reg_val as i16 + offset) as u16, mem_val);
+        vm.reg_write(base_reg, base_reg_val)?;
+        vm.mem_write((base_reg_val as i16 + offset) as u16, mem_val)?;
         let command = Command::new(command);
-        vm.run_command(&command).unwrap();
-        assert_eq!(vm.reg_index_read(0), mem_val);
-        assert_eq!(vm.reg_read(RCond), cond);
+        vm.run_command(&command)?;
+        assert_eq!(vm.reg_index_read(0)?, mem_val);
+        assert_eq!(vm.reg_read(RCond)?, cond);
     }
+
+    Ok(())
 }
 
 #[test]
-fn can_store_register() {
+fn can_store_register() -> LC3Result<()> {
     let base_reg = Register::RR4;
     let base_reg_val = 0x0FAE;
     let store_val = 0xFFAF;
@@ -197,19 +212,21 @@ fn can_store_register() {
 
     for (command, offset) in test_cases {
         let mut vm = VM::new();
-        vm.reg_write(base_reg, base_reg_val);
-        vm.reg_index_write(0, store_val);
+        vm.reg_write(base_reg, base_reg_val)?;
+        vm.reg_index_write(0, store_val)?;
         let command = Command::new(command);
-        vm.run_command(&command).unwrap();
+        vm.run_command(&command)?;
         assert_eq!(
-            vm.mem_read((base_reg_val as i16 + offset) as u16).unwrap(),
+            vm.mem_read((base_reg_val as i16 + offset) as u16)?,
             store_val
         );
     }
+
+    Ok(())
 }
 
 #[test]
-fn can_not() {
+fn can_not() -> LC3Result<()> {
     let source_reg = Register::RR4;
     let target_reg = Register::RR3;
 
@@ -222,16 +239,18 @@ fn can_not() {
 
     for (command, input, output, cond) in test_cases {
         let mut vm = VM::new();
-        vm.reg_write(source_reg, input);
+        vm.reg_write(source_reg, input)?;
         let command = Command::new(command);
-        vm.run_command(&command).unwrap();
-        assert_eq!(vm.reg_read(target_reg), output);
-        assert_eq!(vm.reg_read(RCond), cond);
+        vm.run_command(&command)?;
+        assert_eq!(vm.reg_read(target_reg)?, output);
+        assert_eq!(vm.reg_read(RCond)?, cond);
     }
+
+    Ok(())
 }
 
 #[test]
-fn can_load_indirect() {
+fn can_load_indirect() -> LC3Result<()> {
     let target_reg = Register::RR5;
 
     // Tuple format: (Command, pc offset, final address, stored value, cond)
@@ -243,18 +262,20 @@ fn can_load_indirect() {
 
     for (command, offset, address, value, cond) in test_cases {
         let mut vm = VM::new();
-        vm.reg_write(RPC, INITIAL_PC);
-        vm.mem_write((INITIAL_PC as i16 + offset) as u16, address);
-        vm.mem_write(address, value);
+        vm.reg_write(RPC, INITIAL_PC)?;
+        vm.mem_write((INITIAL_PC as i16 + offset) as u16, address)?;
+        vm.mem_write(address, value)?;
         let command = Command::new(command);
-        vm.run_command(&command).unwrap();
-        assert_eq!(vm.reg_read(target_reg), value);
-        assert_eq!(vm.reg_read(RCond), cond);
+        vm.run_command(&command)?;
+        assert_eq!(vm.reg_read(target_reg)?, value);
+        assert_eq!(vm.reg_read(RCond)?, cond);
     }
+
+    Ok(())
 }
 
 #[test]
-fn can_store_indirect() {
+fn can_store_indirect() -> LC3Result<()> {
     let source_reg = Register::RR5;
     let store_val = 0xAAFA;
 
@@ -267,17 +288,19 @@ fn can_store_indirect() {
 
     for (command, offset, address) in test_cases {
         let mut vm = VM::new();
-        vm.reg_write(RPC, INITIAL_PC);
-        vm.mem_write((INITIAL_PC as i16 + offset) as u16, address);
-        vm.reg_write(source_reg, store_val);
+        vm.reg_write(RPC, INITIAL_PC)?;
+        vm.mem_write((INITIAL_PC as i16 + offset) as u16, address)?;
+        vm.reg_write(source_reg, store_val)?;
         let command = Command::new(command);
-        vm.run_command(&command).unwrap();
-        assert_eq!(vm.mem_read(address).unwrap(), store_val);
+        vm.run_command(&command)?;
+        assert_eq!(vm.mem_read(address)?, store_val);
     }
+
+    Ok(())
 }
 
 #[test]
-fn can_jump() {
+fn can_jump() -> LC3Result<()> {
     let source_reg = Register::RR7;
     let stored_pc = 0xFDBC;
 
@@ -287,15 +310,17 @@ fn can_jump() {
     assert_ne!(INITIAL_PC, stored_pc);
 
     let mut vm = VM::new();
-    vm.reg_write(RPC, INITIAL_PC);
-    vm.reg_write(source_reg, stored_pc);
+    vm.reg_write(RPC, INITIAL_PC)?;
+    vm.reg_write(source_reg, stored_pc)?;
     let command = Command::new(0b1100_0001_1100_0000);
-    vm.run_command(&command).unwrap();
-    assert_eq!(vm.reg_read(RPC), stored_pc);
+    vm.run_command(&command)?;
+    assert_eq!(vm.reg_read(RPC)?, stored_pc);
+
+    Ok(())
 }
 
 #[test]
-fn can_load_effective_address() {
+fn can_load_effective_address() -> LC3Result<()> {
     let target_reg = Register::RR6;
 
     // Using a set value of initial_pc here, since it makes it easier
@@ -310,17 +335,19 @@ fn can_load_effective_address() {
 
     for (command, offset, cond) in test_cases {
         let mut vm = VM::new();
-        vm.reg_write(RPC, initial_pc);
+        vm.reg_write(RPC, initial_pc)?;
         let command = Command::new(command);
-        vm.run_command(&command).unwrap();
+        vm.run_command(&command)?;
         let target_val = (initial_pc as i16 + offset) as u16;
-        assert_eq!(vm.reg_read(target_reg), target_val);
-        assert_eq!(vm.reg_read(RCond), cond);
+        assert_eq!(vm.reg_read(target_reg)?, target_val);
+        assert_eq!(vm.reg_read(RCond)?, cond);
     }
+
+    Ok(())
 }
 
 #[test]
-fn can_trap_getchar() {
+fn can_trap_getchar() -> LC3Result<()> {
     let test_char = 'v';
 
     let mut io_handle = TestIOHandle::new();
@@ -328,31 +355,34 @@ fn can_trap_getchar() {
     let mut vm = VM::new_with_io(io_handle);
 
     let command = Command::new(0xF020);
-    vm.run_command(&command).unwrap();
+    vm.run_command(&command)?;
 
-    let reg_char = vm.reg_read(Register::RR0) as u8 as char;
+    let reg_char = vm.reg_read(Register::RR0)? as u8 as char;
     assert_eq!(test_char, reg_char);
+    Ok(())
 }
 
 #[test]
-fn can_trap_out() {
+fn can_trap_out() -> LC3Result<()> {
     let test_char = 'w';
     let io_reg = Register::RR0;
 
     let io_handle = TestIOHandle::new();
     let mut vm = VM::new_with_io(io_handle);
-    vm.reg_write(io_reg, test_char as u16);
+    vm.reg_write(io_reg, test_char as u16)?;
 
     let command = Command::new(0xF021);
-    vm.run_command(&command).unwrap();
+    vm.run_command(&command)?;
 
     let mut outputs = vm.into_io_handle().get_test_outputs();
     assert!(outputs.len() == 1);
     assert!(outputs.pop() == Some(test_char));
+
+    Ok(())
 }
 
 #[test]
-fn can_trap_put_string() {
+fn can_trap_put_string() -> LC3Result<()> {
     let test_chars = vec!['a', 'b', 'c', 'd', 'e'];
     let io_reg = Register::RR0;
     let start_address = 0xCFFF;
@@ -360,20 +390,22 @@ fn can_trap_put_string() {
     let io_handle = TestIOHandle::new();
     let mut vm = VM::new_with_io(io_handle);
 
-    vm.reg_write(io_reg, start_address);
+    vm.reg_write(io_reg, start_address)?;
     for (offset, test_char) in test_chars.iter().enumerate() {
-        vm.mem_write(start_address + offset as u16, *test_char as u16);
+        vm.mem_write(start_address + offset as u16, *test_char as u16)?;
     }
 
     let command = Command::new(0xF022);
-    vm.run_command(&command).unwrap();
+    vm.run_command(&command)?;
 
     let outputs = vm.into_io_handle().get_test_outputs();
     assert_eq!(outputs, test_chars);
+
+    Ok(())
 }
 
 #[test]
-fn can_trap_in() {
+fn can_trap_in() -> LC3Result<()> {
     let test_char = 'w';
 
     let mut io_handle = TestIOHandle::new();
@@ -381,22 +413,24 @@ fn can_trap_in() {
     let mut vm = VM::new_with_io(io_handle);
 
     let command = Command::new(0xF023);
-    vm.run_command(&command).unwrap();
+    vm.run_command(&command)?;
 
     let mut outputs = vm.into_io_handle().get_test_outputs();
     assert!(outputs.len() == 1);
     assert!(outputs.pop() == Some(test_char));
+
+    Ok(())
 }
 
 #[test]
-fn can_trap_put_byte_string() {
+fn can_trap_put_byte_string() -> LC3Result<()> {
     let test_chars = vec!['a', 'b', 'c', 'd', 'e'];
     let io_reg = Register::RR0;
     let start_address = 0xCFFF;
 
     let io_handle = TestIOHandle::new();
     let mut vm = VM::new_with_io(io_handle);
-    vm.reg_write(io_reg, start_address);
+    vm.reg_write(io_reg, start_address)?;
 
     for (pos, test_char) in test_chars.iter().enumerate() {
         let mut mask = *test_char as u16;
@@ -407,36 +441,41 @@ fn can_trap_put_byte_string() {
 
         let mem_offset = pos / 2;
         let address = start_address + mem_offset as u16;
-        let new_val = vm.mem_read(address).unwrap() | mask;
-        vm.mem_write(address, new_val);
+        let new_val = vm.mem_read(address)? | mask;
+        vm.mem_write(address, new_val)?;
     }
 
     let command = Command::new(0xF024);
-    vm.run_command(&command).unwrap();
+    vm.run_command(&command)?;
 
     let outputs = vm.into_io_handle().get_test_outputs();
     assert_eq!(outputs, test_chars);
+
+    Ok(())
 }
 
 #[test]
-fn can_trap_halt() {
+fn can_trap_halt() -> LC3Result<()> {
     let mut vm = VM::new();
-    vm.set_running(true);
+    vm.set_running(true)?;
     let command = Command::new(0xF025);
-    vm.run_command(&command).unwrap();
-    assert_eq!(vm.get_running(), false);
+    vm.run_command(&command)?;
+    assert_eq!(vm.get_running()?, false);
+
+    Ok(())
 }
 
 #[test]
-fn can_update_flags() {
+fn can_update_flags() -> LC3Result<()> {
     let mut vm = VM::new();
     let value_flag_pairs = vec![(0u16, FL_ZRO), (0x0001, FL_POS), (0x8111, FL_NEG)];
 
     let test_reg = Register::RR0;
     let flags_reg = Register::RCond;
     for (value, flag) in value_flag_pairs {
-        vm.reg_write(test_reg, value);
-        vm.update_flags(test_reg.index());
-        assert_eq!(vm.reg_read(flags_reg), flag);
+        vm.reg_write(test_reg, value)?;
+        vm.update_flags(test_reg.index())?;
+        assert_eq!(vm.reg_read(flags_reg)?, flag);
     }
+    Ok(())
 }

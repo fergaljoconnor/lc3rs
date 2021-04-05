@@ -33,7 +33,7 @@ impl<IOType: IOHandle> Plugin<IOType> for TestPlugin {
 }
 
 #[test]
-fn can_push_events_to_plugin() {
+fn can_push_events_to_plugin() -> LC3Result<()> {
     let test_events = vec![
         Command { bytes: 1 },
         CharGet { ch: 'a' },
@@ -58,9 +58,11 @@ fn can_push_events_to_plugin() {
     let events_ref = plugin.get_events_ref();
 
     for event in &test_events {
-        plugin.handle_event(&mut vm, event);
+        plugin.handle_event(&mut vm, event)?;
     }
 
     let written_events = events_ref.borrow().clone();
     assert_eq!(test_events, written_events);
+
+    Ok(())
 }

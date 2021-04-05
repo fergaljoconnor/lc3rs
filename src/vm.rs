@@ -1,6 +1,6 @@
 use crate::command::Command;
 use crate::condition_flags::{FL_NEG, FL_POS, FL_ZRO};
-use crate::error::{LC3Error, LC3Result};
+use crate::error::{BoxErrors, LC3Error, LC3Result};
 use crate::io::{IOHandle, RealIOHandle};
 use crate::op::{handler, Op};
 use crate::plugin::{Event, Plugin};
@@ -60,12 +60,12 @@ impl<IOType: IOHandle> VM<IOType> {
     }
 
     pub fn run(&mut self) -> LC3Result<()> {
-        self.set_running(true);
-        self.reg_write(RPC, PC_START);
+        self.set_running(true)?;
+        self.reg_write(RPC, PC_START)?;
 
-        while self.get_running() {
-            let program_count = self.reg_read(RPC);
-            self.reg_write(RPC, program_count + 1);
+        while self.get_running()? {
+            let program_count = self.reg_read(RPC)?;
+            self.reg_write(RPC, program_count + 1)?;
 
             let command = Command::new(self.mem_read(program_count)?);
             self.run_command(&command)?;
@@ -85,7 +85,7 @@ impl<IOType: IOHandle> VM<IOType> {
         }
 
         for (index, instruction) in program.iter().enumerate() {
-            self.mem_write(PC_START + index as u16, *instruction);
+            self.mem_write(PC_START + index as u16, *instruction)?;
         }
 
         Ok(())
@@ -94,18 +94,18 @@ impl<IOType: IOHandle> VM<IOType> {
     pub(crate) fn mem_read(&mut self, pos: u16) -> LC3Result<u16> {
         // Deal with the mem-mapped device registers
         if pos == KB_STATUS_POS {
-            if self.is_key_down() {
+            if self.is_key_down()? {
                 // TODO: Right now, I think there's a bug here. If the key
                 // being pressed is not a key handled by getchar()
                 // then the vm will fill the status register and pause
                 // waiting for the user to press one of those keys before
                 // actually doing anything. Not a show stopper, but one to
                 // watch.
-                self.mem_write(KB_STATUS_POS, 1 << 15);
-                let ch = self.getchar();
-                self.mem_write(KB_DATA_POS, ch as u16);
+                self.mem_write(KB_STATUS_POS, 1 << 15)?;
+                let ch = self.getchar()?;
+                self.mem_write(KB_DATA_POS, ch as u16)?;
             } else {
-                self.mem_write(KB_STATUS_POS, 0);
+                self.mem_write(KB_STATUS_POS, 0)?;
             }
         };
 
@@ -117,71 +117,79 @@ impl<IOType: IOHandle> VM<IOType> {
         Ok(val)
     }
 
-    pub(crate) fn mem_write(&mut self, pos: u16, val: u16) {
+    pub(crate) fn mem_write(&mut self, pos: u16, val: u16) -> LC3Result<()> {
         self.notify_plugins(&Event::MemSet {
             location: pos,
             value: val,
-        });
-        self.memory[pos as usize] = val
+        })?;
+        self.memory[pos as usize] = val;
+        Ok(())
     }
 
-    pub(crate) fn reg_read(&mut self, reg: Register) -> u16 {
+    pub(crate) fn reg_read(&mut self, reg: Register) -> LC3Result<u16> {
         self.reg_index_read(reg.to_u8())
     }
 
-    pub(crate) fn reg_write(&mut self, reg: Register, val: u16) {
-        self.reg_index_write(reg.to_u8(), val);
+    pub(crate) fn reg_write(&mut self, reg: Register, val: u16) -> LC3Result<()> {
+        self.reg_index_write(reg.to_u8(), val)?;
+        Ok(())
     }
 
-    pub(crate) fn reg_index_read(&mut self, index: u8) -> u16 {
+    pub(crate) fn reg_index_read(&mut self, index: u8) -> LC3Result<u16> {
         let value = self.registers[index as usize];
-        self.notify_plugins(&Event::RegGet { index, value });
-        value
+        self.notify_plugins(&Event::RegGet { index, value })?;
+        Ok(value)
     }
 
-    pub(crate) fn reg_index_write(&mut self, index: u8, val: u16) {
-        self.notify_plugins(&Event::RegSet { index, value: val });
+    pub(crate) fn reg_index_write(&mut self, index: u8, val: u16) -> LC3Result<()> {
+        self.notify_plugins(&Event::RegSet { index, value: val })?;
         self.registers[index as usize] = val;
+
+        Ok(())
     }
 
-    pub(crate) fn putchar(&mut self, ch: char) {
-        self.notify_plugins(&Event::CharPut { ch });
-        self.io_handle.putchar(ch).unwrap()
+    pub(crate) fn putchar(&mut self, ch: char) -> LC3Result<()> {
+        self.notify_plugins(&Event::CharPut { ch })?;
+        self.io_handle.putchar(ch)?;
+        Ok(())
     }
 
-    pub(crate) fn getchar(&mut self) -> char {
-        let ch = self.io_handle.getchar().unwrap();
-        self.notify_plugins(&Event::CharGet { ch });
-        ch
+    pub(crate) fn getchar(&mut self) -> LC3Result<char> {
+        let ch = self.io_handle.getchar()?;
+        self.notify_plugins(&Event::CharGet { ch })?;
+        Ok(ch)
     }
 
-    pub(crate) fn is_key_down(&mut self) -> bool {
-        let key_down = self.io_handle.is_key_down().unwrap();
-        self.notify_plugins(&Event::KeyDownGet { value: key_down });
-        key_down
+    pub(crate) fn is_key_down(&mut self) -> LC3Result<bool> {
+        let key_down = self.io_handle.is_key_down().map_io_error()?;
+        self.notify_plugins(&Event::KeyDownGet { value: key_down })?;
+        Ok(key_down)
     }
 
-    pub(crate) fn get_running(&mut self) -> bool {
+    pub(crate) fn get_running(&mut self) -> LC3Result<bool> {
         let value = self.running;
-        self.notify_plugins(&Event::RunningGet { value });
-        value
+        self.notify_plugins(&Event::RunningGet { value })?;
+        Ok(value)
     }
 
-    pub(crate) fn set_running(&mut self, val: bool) {
-        self.notify_plugins(&Event::RunningSet { value: val });
+    pub(crate) fn set_running(&mut self, val: bool) -> LC3Result<()> {
+        self.notify_plugins(&Event::RunningSet { value: val })?;
         self.running = val;
+
+        Ok(())
     }
 
-    pub(crate) fn update_flags(&mut self, register_index: usize) {
+    pub(crate) fn update_flags(&mut self, register_index: usize) -> LC3Result<()> {
         let mut cond_flag = FL_POS;
-        let value = self.reg_index_read(register_index as u8);
+        let value = self.reg_index_read(register_index as u8)?;
         if value == 0 {
             cond_flag = FL_ZRO;
         } else if (value >> 15) == 1 {
             cond_flag = FL_NEG;
         };
 
-        self.reg_write(RCond, cond_flag);
+        self.reg_write(RCond, cond_flag)?;
+        Ok(())
     }
 
     pub(crate) fn notify_plugins(&mut self, event: &Event) -> LC3Result<()> {
@@ -266,25 +274,27 @@ impl<IOType: IOHandle> VM<IOType> {
 mod test {
     use super::VM;
     use crate::condition_flags::{FL_NEG, FL_POS, FL_ZRO};
+    use crate::error::LC3Result;
     use crate::io::TestIOHandle;
     use crate::register::Register::RCond;
 
     #[test]
-    fn can_update_flags() {
+    fn can_update_flags() -> LC3Result<()> {
         // Tuple format: (Register value, Expected Flag)
         let test_cases = vec![(0u16, FL_ZRO), (0x0001, FL_POS), (0x8111, FL_NEG)];
 
         let test_reg = 0;
         for (value, flag) in test_cases {
             let mut vm = VM::new();
-            vm.reg_index_write(test_reg, value);
-            vm.update_flags(test_reg as usize);
-            assert_eq!(vm.reg_read(RCond), flag);
+            vm.reg_index_write(test_reg, value)?;
+            vm.update_flags(test_reg as usize)?;
+            assert_eq!(vm.reg_read(RCond)?, flag);
         }
+        Ok(())
     }
 
     #[test]
-    fn can_read_memmapped_registers() {
+    fn can_read_memmapped_registers() -> LC3Result<()> {
         let test_char = 'q';
 
         let mut io_handle = TestIOHandle::new();
@@ -299,15 +309,17 @@ mod test {
         // register read fails (and should, since we're not on a physical
         // machine there's nothing independently updating the registers
         // on its own schedule).
-        assert_eq!(vm.mem_read(super::KB_STATUS_POS).unwrap(), 1 << 15);
+        assert_eq!(vm.mem_read(super::KB_STATUS_POS)?, 1 << 15);
         assert_eq!(
-            vm.mem_read(super::KB_DATA_POS).unwrap() as u8 as char,
+            vm.mem_read(super::KB_DATA_POS)? as u8 as char,
             test_char
         );
+
+        Ok(())
     }
 
     #[test]
-    fn can_run_program() {
+    fn can_run_program() -> LC3Result<()> {
         let mut program: Vec<u16> = vec![
             // Write (incremented program counter + 2) into RR0
             0b1110_0000_0000_0010,
@@ -323,11 +335,13 @@ mod test {
 
         let io_handle = TestIOHandle::new();
         let mut vm = VM::new_with_io(io_handle);
-        vm.load_program(&program).unwrap();
-        vm.run().unwrap();
+        vm.load_program(&program)?;
+        vm.run()?;
 
         let io_handle = vm.into_io_handle();
         let outputs: String = io_handle.get_test_outputs().iter().collect();
         assert_eq!(test_string.to_string(), outputs);
+
+        Ok(())
     }
 }

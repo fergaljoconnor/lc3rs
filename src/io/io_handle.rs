@@ -4,7 +4,7 @@ use std::cell::RefCell;
 use device_query::{DeviceQuery, DeviceState};
 
 use super::io::{getchar, putchar};
-use crate::error::IOResult;
+use crate::error::LC3Result;
 
 #[cfg(test)]
 use crate::error::{BoxErrors, LC3Error};
@@ -13,9 +13,9 @@ use crate::error::{BoxErrors, LC3Error};
 // be part of the VM module. It's the VM's needs that actually determine
 // what this interface should do.
 pub trait IOHandle {
-    fn getchar(&self) -> IOResult<char>;
-    fn putchar(&self, ch: char) -> IOResult<()>;
-    fn is_key_down(&self) -> IOResult<bool>;
+    fn getchar(&self) -> LC3Result<char>;
+    fn putchar(&self, ch: char) -> LC3Result<()>;
+    fn is_key_down(&self) -> LC3Result<bool>;
 }
 
 pub struct RealIOHandle {
@@ -31,15 +31,15 @@ impl RealIOHandle {
 }
 
 impl IOHandle for RealIOHandle {
-    fn getchar(&self) -> IOResult<char> {
+    fn getchar(&self) -> LC3Result<char> {
         getchar()
     }
 
-    fn putchar(&self, ch: char) -> IOResult<()> {
+    fn putchar(&self, ch: char) -> LC3Result<()> {
         putchar(ch)
     }
 
-    fn is_key_down(&self) -> IOResult<bool> {
+    fn is_key_down(&self) -> LC3Result<bool> {
         Ok(self.device_state.get_keys().is_empty())
     }
 }
@@ -76,28 +76,26 @@ impl TestIOHandle {
 
 #[cfg(test)]
 impl IOHandle for TestIOHandle {
-    fn getchar(&self) -> IOResult<char> {
+    fn getchar(&self) -> LC3Result<char> {
         self.key_presses
             .borrow_mut()
             .pop()
             .ok_or(LC3Error::Other(
                 "Attempted to call getchar on empty key presses vector".to_string(),
             ))
-            .box_error()
     }
 
-    fn putchar(&self, ch: char) -> IOResult<()> {
+    fn putchar(&self, ch: char) -> LC3Result<()> {
         self.outputs.borrow_mut().push(ch);
         Ok(())
     }
 
-    fn is_key_down(&self) -> IOResult<bool> {
+    fn is_key_down(&self) -> LC3Result<bool> {
         self.keydown_values
             .borrow_mut()
             .pop()
             .ok_or(LC3Error::Other(
                 "Attempted to call getchar on empty key down vector".to_string(),
             ))
-            .box_error()
     }
 }

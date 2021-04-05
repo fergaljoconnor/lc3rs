@@ -52,12 +52,15 @@ impl Op {
 
 #[cfg(test)]
 mod test {
+    use crate::error::LC3Result;
     use super::{Op, OP_CODES};
 
     #[test]
-    fn can_cast_int_to_instruction() {
+    fn can_cast_int_to_instruction() -> LC3Result<()> {
         for (code, op) in OP_CODES.iter().enumerate() {
-            assert_eq!(&Op::from_int(code as u8).unwrap(), op);
+            assert_eq!(&Op::from_int(code as u8)?, op);
         }
+
+        Ok(())
     }
 }
