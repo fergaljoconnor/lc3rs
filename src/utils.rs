@@ -28,10 +28,6 @@ macro_rules! wrapping_add {
     };
 }
 
-fn reverse_endianness(bytes:u16) -> u16 {
-    (bytes >> 8) | (bytes << 8)
-}
-
 #[cfg(test)]
 mod test {
     use super::sign_extend;

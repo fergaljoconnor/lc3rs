@@ -7,7 +7,7 @@ use super::io::{getchar, putchar};
 use crate::error::LC3Result;
 
 #[cfg(test)]
-use crate::error::{BoxErrors, LC3Error};
+use crate::error::{LC3Error};
 
 // TODO: Maybe the dependency should be flipped here, so this trait should
 // be part of the VM module. It's the VM's needs that actually determine

@@ -7,7 +7,7 @@ use structopt::StructOpt;
 
 fn main() -> PublicResult<()> {
     let options = Options::from_args();
-    let program = read_program(&options.path)?;
+    let program = read_program(&options.path, options.little_endian)?;
 
     let mut vm = VM::new();
 

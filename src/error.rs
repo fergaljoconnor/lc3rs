@@ -53,11 +53,11 @@ where
     }
 
     fn map_plugin_error(self) -> LC3Result<T> {
-        self.box_error().map_err(|source| LC3Error::Plugin { source } )
+        self.box_error()
+            .map_err(|source| LC3Error::Plugin { source })
     }
 
     fn map_io_error(self) -> LC3Result<T> {
-        self.box_error().map_err(|source| LC3Error::IO { source } )
+        self.box_error().map_err(|source| LC3Error::IO { source })
     }
-
 }
