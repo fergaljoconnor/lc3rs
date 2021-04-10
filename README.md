@@ -4,9 +4,13 @@ lc3rs is an lc3 virtual machine. If you just want to run lc3 binaries, all you n
 
 Many thanks to Justin Meiners for his [fantastic walkthrough of writing an LC3 virtual machine in C](https://justinmeiners.github.io/lc3-vm/), which made the process of implementing the VM very straightforward.
 
+### Installation Notes
+
+lc3rs depends on [device query](https://github.com/ostrosco/device_query). On Windows and MacOS it should work out of the box but on Linux you'll also need to install the X11 development libraries (libx11-dev on Debian or xorg-x11-server-devel on Fedora).
+
 ### Command Line Usage
 
-Basic usage:
+Basic Usage:
 
 ```
 /path/to/lc3rs /path/to/your/lc3/program.obj
@@ -20,9 +24,11 @@ The command line can also write a debug log to a separate file during execution 
 /path/to/lc3rs --debug-log-path ~/debug_log.txt /path/to/your/lc3/program.obj
 ```
 
-If you do use a debug log, be aware that it can chew through disk space very fast since it logs every event (command execution, memory read, register read etc.) that occurs during execution.
+If you do use a debug log, be aware that it can eat disk space very fast since it logs every event (command execution, memory read, register read etc.) that occurs during execution.
 
 ### Embedded Usage
+
+Basic Example:
 
 ```
 use lc3rs::{VM, LC3Error};
@@ -49,6 +55,54 @@ fn main() -> Result<(), LC3Error> {
 }
 ```
 
-### Installation Notes
+Implementing A Custom IO Handle:
 
-lc3rs depends on [device query](https://github.com/ostrosco/device_query). On Windows and MacOS it should work out of the box but on Linux you'll also need to install the X11 development libraries (libx11-dev on Debian or xorg-x11-server-devel on Fedora).
+```
+use lc3rs::{IOHandle, LC3Result};
+
+struct MyIOHandle {}
+
+impl IOHandle for MyIOHandle {
+    fn getchar(&self) -> LC3Result<char> {
+       Ok('a')
+    }
+
+    fn putchar(&self, ch: char) -> LC3Result<()> {
+        Ok(())
+    }
+
+    fn is_key_down(&self) -> LC3Result<bool> {
+        Ok(true)
+    }
+}
+```
+
+Using your custom IO Handle:
+
+```
+let io_handle = MyIOHandle{};
+let mut vm = VM::new_with_io(io_handle);
+```
+
+Implementing a Custom Plugin
+
+```
+use lc3rs::{Event, IOHandle, LC3Result, Plugin};
+
+struct MyPlugin {}
+
+impl<IOType: IOHandle> Plugin<IOType> for MyPlugin {
+    fn handle_event(&mut self, _vm: &mut VM<IOType>, event: &Event) -> LC3Result<()> {
+        println!("Event received");
+        Ok(())
+    }
+}
+```
+
+Using Your Custom Plugin:
+
+```
+let mut vm = VM::new();
+let plugin = MyPlugin {};
+vm.add_plugin(Box::new(plugin));
+```
