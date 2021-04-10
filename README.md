@@ -1,14 +1,14 @@
-## lc3rs: A simple, extensible LC3 virtual machine
+# lc3rs: A simple, extensible LC3 virtual machine
 
 lc3rs is an lc3 virtual machine. If you just want to run lc3 binaries, all you need to do is build lc3rs and point it at your binary through the command line (see the usage section below) The library can also be imported and embedded in a larger Rust application. It offers hooks for extension through the Plugin trait and redirection of input/output streams through the IOHandle trait.
 
 Many thanks to Justin Meiners for his [fantastic walkthrough of writing an LC3 virtual machine in C](https://justinmeiners.github.io/lc3-vm/), which made the process of implementing the VM very straightforward.
 
-### Installation Notes
+## Installation Notes
 
 lc3rs depends on [device query](https://github.com/ostrosco/device_query). On Windows and MacOS it should work out of the box but on Linux you'll also need to install the X11 development libraries (libx11-dev on Debian or xorg-x11-server-devel on Fedora).
 
-### Command Line Usage
+## Command Line Usage
 
 Basic Usage:
 
@@ -26,7 +26,7 @@ The command line can also write a debug log to a separate file during execution 
 
 If you do use a debug log, be aware that it can eat disk space very fast since it logs every event (command execution, memory read, register read etc.) that occurs during execution.
 
-### Embedded Usage
+## Embedded Usage
 
 Basic Example:
 
