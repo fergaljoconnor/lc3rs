@@ -57,7 +57,7 @@ fn main() -> Result<(), LC3Error> {
 
 Implementing A Custom IO Handle:
 
-```
+```Rust
 use lc3rs::{IOHandle, LC3Result};
 
 struct MyIOHandle {}
@@ -79,14 +79,14 @@ impl IOHandle for MyIOHandle {
 
 Using your custom IO Handle:
 
-```
+```Rust
 let io_handle = MyIOHandle{};
 let mut vm = VM::new_with_io(io_handle);
 ```
 
 Implementing a Custom Plugin
 
-```
+```Rust
 use lc3rs::{Event, IOHandle, LC3Result, Plugin};
 
 struct MyPlugin {}
@@ -101,7 +101,7 @@ impl<IOType: IOHandle> Plugin<IOType> for MyPlugin {
 
 Using Your Custom Plugin:
 
-```
+```Rust
 let mut vm = VM::new();
 let plugin = MyPlugin {};
 vm.add_plugin(Box::new(plugin));
