@@ -1,4 +1,4 @@
-## lc3rs
+## lc3rs: A simple, extensible LC3 virtual machine
 
 lc3rs is an lc3 virtual machine. If you just want to run lc3 binaries, all you need to do is build lc3rs and point it at your binary through the command line (see the usage section below) The library can also be imported and embedded in a larger Rust application. It offers hooks for extension through the Plugin trait and redirection of input/output streams through the IOHandle trait.
 
