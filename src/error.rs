@@ -3,7 +3,7 @@ use std::result::Result as StdResult;
 
 use thiserror::Error;
 
-pub(crate) type LC3Result<T> = StdResult<T, LC3Error>;
+pub type LC3Result<T> = StdResult<T, LC3Error>;
 
 pub(crate) type BoxedError = Box<dyn StdError + 'static>;
 pub type PublicResult<T> = StdResult<T, BoxedError>;

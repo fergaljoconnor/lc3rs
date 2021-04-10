@@ -9,7 +9,7 @@ Many thanks to Justin Meiners for his [fantastic walkthrough of writing an LC3 v
 Basic usage:
 
 ```
-/path/to/lc3rs/binary/lc3rs /path/to/your/lc3/program/
+/path/to/lc3rs /path/to/your/lc3/program.obj
 ```
 
 By default, lc3rs assumes that your program is big-endian. If you're passing it a little-endian binary you can use the -l / --little-endian flag to flip the bytes on the way in.
@@ -17,10 +17,37 @@ By default, lc3rs assumes that your program is big-endian. If you're passing it 
 The command line can also write a debug log to a separate file during execution using the -d/--debug-log-path argument:
 
 ```
-/path/to/lc3rs/binary/lc3rs --debug-log-path ~/debug_log.txt /path/to/your/lc3/program
+/path/to/lc3rs --debug-log-path ~/debug_log.txt /path/to/your/lc3/program.obj
 ```
 
 If you do use a debug log, be aware that it can chew through disk space very fast since it logs every event (command execution, memory read, register read etc.) that occurs during execution.
+
+### Embedded Usage
+
+```
+use lc3rs::{VM, LC3Error};
+
+fn main() -> Result<(), LC3Error> {
+
+    // Build a quick hello world program.
+    let mut program: Vec<u16> = vec![
+        // Write (incremented program counter + 2) into RR0
+        0b1110_0000_0000_0010,
+        // Print the string starting at the address in RR0
+        0xF022,
+        // Halt
+        0xF025,
+    ];
+    let out_string = "Hello world!";
+    let char_vals = out_string.chars().map(|ch| ch as u16);
+    program.extend(char_vals);
+
+    // Execute the program
+    let mut vm = VM::new();
+    vm.load_program(&program)?;
+    vm.run()
+}
+```
 
 ### Installation Notes
 

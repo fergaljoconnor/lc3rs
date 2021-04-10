@@ -12,3 +12,6 @@ mod trap;
 #[macro_use]
 mod utils;
 pub mod vm;
+
+pub use vm::VM;
+pub use error::LC3Error;
