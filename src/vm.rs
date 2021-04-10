@@ -47,7 +47,7 @@ impl<IOType: IOHandle> VM<IOType> {
 
     // If there end up being more options to tweak might want to break out
     // a builder for this one, but right now this is fine.
-    pub(crate) fn new_with_io(io_handle: IOType) -> Self {
+    pub fn new_with_io(io_handle: IOType) -> Self {
         let memory = [0u16; MEMORY_SIZE];
         let registers = [0u16; NUM_REGISTERS];
         VM {
