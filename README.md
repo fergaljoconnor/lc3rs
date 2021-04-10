@@ -30,7 +30,7 @@ If you do use a debug log, be aware that it can eat disk space very fast since i
 
 Basic Example:
 
-```
+```Rust
 use lc3rs::{VM, LC3Error};
 
 fn main() -> Result<(), LC3Error> {
